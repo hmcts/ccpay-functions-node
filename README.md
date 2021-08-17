@@ -15,7 +15,7 @@ Installation
 
 Configuration
 
-Set below environment variables with corresponding servicebus you want to connect to.
+Set below environment variables with corresponding servicebus you want to connect to...
 
 - SERVICE_CALLBACK_BUS_CONNECTION
 - SERVICE_CALLBACK_SUBSCRIPTION
