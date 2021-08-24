@@ -1,11 +1,17 @@
 # exclude all by default
 
-*
+charts
+test
+.eslintrc.yml
+.gitignore
+.scannerwork
+Dockerfile
+Jenkinsfile_CNP
+Jenkinsfile_parameterized
+sonar-project.properties
+coverage
+version
+package-lock.json
+README.md
 
 # exceptions from `exclude all` rule
-
-!package.json
-!yarn.lock
-
-!serviceCallbackFunction/**
-!config/**
