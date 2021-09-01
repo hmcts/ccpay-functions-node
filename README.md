@@ -2,7 +2,7 @@
 
 **Service Callback**
 
-Receives a message from the service bus which is then sent to a callback endpoint by HTTP PATCH
+Receives a message from the service bus which is then sent to a callback endpoint by HTTP PATCH.
 
 **How to test and develop locally**
 
