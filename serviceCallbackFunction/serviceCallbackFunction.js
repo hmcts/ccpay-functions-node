@@ -120,7 +120,6 @@ validateMessage = message => {
     return true;
 }
 
-
 async function sendMessage(msg) {
     const sBusClient = ServiceBusClient.createFromConnectionString(connectionString);
     const topicClient = sBusClient.createTopicClient(topicName);
