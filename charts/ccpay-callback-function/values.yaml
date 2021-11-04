@@ -1,7 +1,6 @@
 function:
-  trigger:
-    type: azure-servicebus
-    servicebus:
+  triggers:
+    - type: azure-servicebus
       topicName: "servicecallbacktopic"
       subscriptionName: defaultServiceCallbackSubscription
       connection: SERVICE_CALLBACK_BUS_CONNECTION
