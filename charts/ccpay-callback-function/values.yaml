@@ -1,5 +1,5 @@
 function:
-  image: 'hmctspublic.azurecr.io/ccpay/callback-function:latest'
+  image: hmctspublic.azurecr.io/ccpay/callback-function
   triggers:
     - type: azure-servicebus
       topicName: "servicecallbacktopic"
