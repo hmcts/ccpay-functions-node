@@ -1,7 +1,7 @@
 function:
   image: hmctspublic.azurecr.io/ccpay/callback-function
-  triggers:
-    - type: azure-servicebus
+  trigger:
+      type: azure-servicebus
       topicName: "servicecallbacktopic"
       subscriptionName: defaultServiceCallbackSubscription
       connection: SERVICE_CALLBACK_BUS_CONNECTION
