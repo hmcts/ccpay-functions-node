@@ -44,7 +44,7 @@ module.exports = async function serviceCallbackFunction() {
                     body: serviceAuthRequest,
                     json: true
                 }).then(token => {
-                    console.log('S2S Token Retrieved.......');
+                    console.log('S2S Token has been Retrieved.......');
                     const serviceResponse  = s2sRequest.put({
                         uri: serviceCallbackUrl,
                         headers: {
