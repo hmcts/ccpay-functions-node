@@ -67,7 +67,7 @@ module.exports = async function serviceCallbackFunction() {
 }
 
 validateMessage = message => {
-    console.log('Received callback message: ', JSON.stringify(message.body));
+    console.log('Received callback messages: ', JSON.stringify(message.body));
     if (!message.body) {
         console.log('No body received');
         return false;
