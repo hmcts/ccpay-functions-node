@@ -87,6 +87,7 @@ validateMessage = message => {
     return true;
 }
 
+//send message
 
 async function sendMessage(msg) {
     const sBusClient = ServiceBusClient.createFromConnectionString(connectionString);
