@@ -22,7 +22,7 @@ appVersion: 0.1.5
 
 dependencies:
   - name: function
-    version: 1.0.4
+    version: 0.1.2-beta
     repository: '@hmctspublic'
   - name: servicebus
     version: 0.3.0
