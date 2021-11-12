@@ -1,6 +1,7 @@
 function:
   image: 'hmctspublic.azurecr.io/ccpay/callback-function:latest'
   environment:
+    name: "dummy"
   triggers:
     - type: azure-servicebus
       topicName: "servicecallbacktopic"
