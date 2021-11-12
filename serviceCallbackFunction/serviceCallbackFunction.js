@@ -8,6 +8,7 @@ const subscriptionName = config.get('servicecallbackSubscriptionName');
 const processMessagesCount = config.get('processMessagesCount');
 const delayTime = config.get('delayMessageMinutes');
 
+
 const MAX_RETRIES = 3;
 
 module.exports = async function serviceCallbackFunction() {
