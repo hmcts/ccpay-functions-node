@@ -54,7 +54,6 @@ __pycache__/
 .DS_Store?
 
 node_modules/
-package-lock.json
 .project
 .settings/
 coverage
