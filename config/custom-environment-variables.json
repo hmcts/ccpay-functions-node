@@ -1,7 +1,7 @@
 {
-  "servicecallbackBusConnection": "sb-primary-connection-string",
+  "servicecallbackBusConnection": "SERVICE_CALLBACK_BUS_CONNECTION",
   "servicecallbackSubscriptionName": "SERVICE_CALLBACK_SUBSCRIPTION",
   "processMessagesCount": "PROCESS_MESSAGES_COUNT",
-  "appInsightsInstumentationKey": "AppInsightsInstrumentationKey",
+  "appInsightsInstumentationKey": "APPINSIGHTS_INSTRUMENTATIONKEY",
   "delayMessageMinutes": "DELAY_MESSAGE_MINUTES"
 }
