@@ -3,6 +3,7 @@ function:
   image: ${IMAGE_NAME}
   environment:
     APPINSIGHTS_INSTRUMENTATIONKEY: 124e39c3-6dad-49ef-aede-d2cddac865c2
+    SERVICE_CALLBACK_SUBSCRIPTION: pr-subscription-name
   secrets:
     SERVICE_CALLBACK_BUS_CONNECTION:
       secretRef: servicebus-secret-topic-{{ .Release.Name }}-servicebus-servicecallbacktopic
