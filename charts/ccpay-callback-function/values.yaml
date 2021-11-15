@@ -8,6 +8,7 @@ function:
       subscriptionName: defaultServiceCallbackSubscription
       connection: SERVICE_CALLBACK_BUS_CONNECTION
       queueLength: 1
+  aadIdentityName: ccpay
   keyVaults:
     "ccpay":
       secrets:
