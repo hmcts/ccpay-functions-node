@@ -10,6 +10,7 @@ const delayTime = config.get('delayMessageMinutes');
 
 const MAX_RETRIES = 3;
 
+
 module.exports = async function serviceCallbackFunction() {
     const sbClient = ServiceBusClient.createFromConnectionString(connectionString);
     const subscriptionClient = sbClient.createSubscriptionClient(topicName, subscriptionName);
