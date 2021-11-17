@@ -5,7 +5,30 @@ def type = "nodejs"
 def product = "ccpay"
 def component = "callback-function"
 
+def secrets = [
+        'ccpay-${env}': [
+                secret('payment-s2s-secret', 'S2S_KEY_PAYMENT_APP')
+        ]
+]
+
+static LinkedHashMap<String, Object> secret(String secretName, String envVar) {
+    [ $class: 'AzureKeyVaultSecret',
+      secretType: 'Secret',
+      name: secretName,
+      version: '',
+      envVariable: envVar
+    ]
+}
+
+def vaultOverrides = [
+        'preview': 'aat',
+        'hmctsdemo': 'aat',
+
+]
+
 withPipeline(type, product, component) {
-  disableLegacyDeployment()
-  nonServiceApp()
+    overrideVaultEnvironments(vaultOverrides)
+    disableLegacyDeployment()
+    nonServiceApp()
+    loadVaultSecrets(secrets)
 }

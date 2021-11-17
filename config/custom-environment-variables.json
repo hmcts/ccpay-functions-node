@@ -3,5 +3,12 @@
   "servicecallbackSubscriptionName": "SERVICE_CALLBACK_SUBSCRIPTION",
   "processMessagesCount": "PROCESS_MESSAGES_COUNT",
   "appInsightsInstumentationKey": "APPINSIGHTS_INSTRUMENTATIONKEY",
-  "delayMessageMinutes": "DELAY_MESSAGE_MINUTES"
+  "delayMessageMinutes": "DELAY_MESSAGE_MINUTES",
+  "s2sUrl": "S2S_URL",
+  "microservicePaymentApp": "MICROSERVICE_PAYMENT_APP",
+  "secrets": {
+    "ccpay": {
+      "payment-s2s-secret": "S2S_KEY_PAYMENT_APP"
+    }
+  }
 }
