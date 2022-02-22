@@ -17,7 +17,7 @@ def subscription = 'sandbox'
 echo "Building '${product}-${component}' in '${environment}'"
 
 List<LinkedHashMap<String, Object>> secrets = [
-        secret('payment-s2s-secret', 'S2S_KEY_PAYMENT_APP')
+  secret('payment-s2s-secret', 'S2S_KEY_PAYMENT_APP')
 ]
 
 static LinkedHashMap<String, Object> secret(String secretName, String envVar) {

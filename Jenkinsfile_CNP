@@ -6,9 +6,9 @@ def product = "ccpay"
 def component = "callback-function"
 
 def secrets = [
-        'ccpay-${env}': [
-                secret('payment-s2s-secret', 'S2S_KEY_PAYMENT_APP')
-        ]
+  'ccpay-${env}': [
+     secret('payment-s2s-secret', 'S2S_KEY_PAYMENT_APP')
+    ]
 ]
 
 static LinkedHashMap<String, Object> secret(String secretName, String envVar) {
