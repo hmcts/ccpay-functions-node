@@ -12,7 +12,6 @@ const delayTime = config.get('delayMessageMinutes');
 
 const s2sUrl = config.get('s2sUrl');
 const s2sSecret = config.get('secrets.ccpay.payment-s2s-secret');
-const testObj = config.get('secrets.ccpay.payment-s2s-secret');
 const microService = config.get('microservicePaymentApp');
 
 
@@ -21,8 +20,6 @@ const MAX_RETRIES = 3;
 
 module.exports = async function serviceCallbackFunction() {
     console.log('microService for testing :' + microService);
-    console.log('testObj testing :' + testObj);
-
     const sbClient = ServiceBusClient.createFromConnectionString(connectionString);
     const subscriptionClient = sbClient.createSubscriptionClient(topicName, subscriptionName);
     const receiver = subscriptionClient.createReceiver(ReceiveMode.peekLock);
