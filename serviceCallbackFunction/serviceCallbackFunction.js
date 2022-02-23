@@ -16,7 +16,7 @@ module.exports = async function serviceCallbackFunction() {
     const receiver = subscriptionClient.createReceiver(ReceiveMode.peekLock);
     const messages = await receiver.receiveMessages(processMessagesCount);
     if (messages.length == 0) {
-        console.log('no message received in this run');
+        console.log('no messages received in this run');
     }
     for (let i = 0; i < messages.length; i++) {
         let msg = messages[i];
