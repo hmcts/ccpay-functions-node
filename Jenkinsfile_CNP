@@ -6,6 +6,8 @@ def product = "ccpay"
 def component = "callback-function"
 
 withPipeline(type, product, component) {
+  env.PREVIEW_AKS_CLUSTER_NAME = "cft-preview-01-aks"
+  env.PREVIEW_AKS_RESOURCE_GROUP = "cft-preview-01-rg"
   disableLegacyDeployment()
   nonServiceApp()
 }
