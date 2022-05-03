@@ -10,7 +10,6 @@ Go to functions directory `$ cd functions`
 
 Installation
 
-
 `yarn install`
 
 Configuration
