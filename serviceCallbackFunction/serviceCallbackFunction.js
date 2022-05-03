@@ -60,7 +60,6 @@ module.exports = async function serviceCallbackFunction() {
                 await msg.complete();
             }
         }
-
     }
     await subscriptionClient.close();
     await sbClient.close();
