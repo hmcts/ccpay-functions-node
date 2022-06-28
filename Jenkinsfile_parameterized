@@ -16,6 +16,19 @@ def subscription = 'sandbox'
 
 echo "Building '${product}-${component}' in '${environment}'"
 
+List<LinkedHashMap<String, Object>> secrets = [
+  secret('payment-s2s-secret', 'S2S_KEY_PAYMENT_APP')
+]
+
+static LinkedHashMap<String, Object> secret(String secretName, String envVar) {
+    [ $class: 'AzureKeyVaultSecret',
+      secretType: 'Secret',
+      name: secretName,
+      version: '',
+      envVariable: envVar
+    ]
+}
+
 node {
     env.PATH = "$env.PATH:/usr/local/bin"
     stage('Checkout') {
@@ -24,6 +37,12 @@ node {
     }
     stage('Build') {
         yarn("--mutex network install")
+    }
+    withParameterizedPipeline(params.TYPE, params.PRODUCT_NAME, params.APP, params.ENVIRONMENT, params.SUBSCRIPTION) {
+        after('build') {
+            sh 'yarn ng:build'
+        }
+        loadVaultSecrets(secrets)
     }
     withSubscription(subscription) {
            withIlbIp(environment) {
