@@ -23,8 +23,8 @@ appVersion: 0.2.1
 dependencies:
   - name: function
     version: 1.0.4
-    repository: 'https://hmctspublic.azurecr.io/helm/v1/repo/'
+    repository: '@hmctspublic'
   - name: servicebus
     version: 0.3.0
-    repository: 'https://hmctspublic.azurecr.io/helm/v1/repo/'
+    repository: '@hmctspublic'
     condition: servicebus.enabled
