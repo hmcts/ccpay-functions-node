@@ -15,6 +15,7 @@ const s2sSecret = config.get('secrets.ccpay.payment-s2s-secret');
 const microService = config.get('microservicePaymentApp');
 const MAX_RETRIES = 3;
 
+
 module.exports = async function serviceCallbackFunction() {
     const sbClient = ServiceBusClient.createFromConnectionString(connectionString);
     const subscriptionClient = sbClient.createSubscriptionClient(topicName, subscriptionName);
