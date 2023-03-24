@@ -12,10 +12,11 @@ function:
       secretRef: servicebus-secret-topic-{{ .Release.Name }}-servicebus-servicecallbacktopic
       key: subscriptionName
 servicebus:
-  resourceGroup: fees-pay-rg
+  resourceGroup: fees-pay-aso-preview-rg
   teamName: "Fees Pay"
   location: ukwest
   serviceplan: standard
+  sbNamespace: fees-pay
   setup:
     topics:
       - name: servicecallbacktopic
