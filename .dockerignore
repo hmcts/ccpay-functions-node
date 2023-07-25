@@ -9,3 +9,8 @@
 
 !serviceCallbackFunction/**
 !config/**
+
+!.yarn/**
+!.yarnrc.yml
+!package.json
+!yarn.lock
