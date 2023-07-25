@@ -27,3 +27,5 @@ Start
 Run tests
 
 `yarn test`
+
+.
