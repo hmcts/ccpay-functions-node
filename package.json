@@ -4,7 +4,7 @@
   "private": true,
   "main": "index.js",
   "engines": {
-    "node": ">=17.9.1"
+    "node": ">=v18.0.0"
   },
   "scripts": {
     "start": "node serviceCallbackFunction/index.js",
