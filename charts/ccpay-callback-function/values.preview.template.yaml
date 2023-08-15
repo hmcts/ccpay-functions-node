@@ -9,10 +9,16 @@ function:
   secrets:
     SERVICE_CALLBACK_BUS_CONNECTION:
       secretRef: servicebus-secret-topic-{{ .Release.Name }}-servicebus-servicecallbacktopic
-      key: servicebusConnectionString
+      key: connectionString
     SERVICE_CALLBACK_SUBSCRIPTION:
       secretRef: servicebus-secret-topic-{{ .Release.Name }}-servicebus-servicecallbacktopic
       key: subscriptionName
+    SB_ACCESS_KEY:
+      secretRef: fees-pay-sb-preview
+      key: primaryKey
+    SB_CONNECTION_STRING:
+      secretRef: fees-pay-sb-preview
+      key: connectionString
 servicebus:
   resourceGroup: fees-pay-rg
   sbNamespace: "fees-pay-sb-preview"
