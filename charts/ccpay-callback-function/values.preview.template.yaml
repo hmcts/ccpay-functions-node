@@ -9,7 +9,7 @@ function:
     SB_ACCESS_KEY:
       secretRef: fees-pay-sb-preview
       key: primaryKey
-    SB_CONNECTION_STRING:
+    SERVICE_CALLBACK_BUS_CONNECTION:
         secretRef: fees-pay-sb-preview
         key: connectionString
 servicebus:
