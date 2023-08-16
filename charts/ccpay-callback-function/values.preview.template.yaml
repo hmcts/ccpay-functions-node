@@ -13,7 +13,7 @@ function:
       key: connectionString
 servicebus:
   resourceGroup: fees-pay-rg
-  sbNamespace: "fees-pay-sb-preview"
+  sbNamespace: "fees-pay-servicebus-preview"
   teamName: "Fees Pay"
   location: ukwest
   serviceplan: standard
