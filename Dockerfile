@@ -6,7 +6,7 @@ USER hmcts
 
 COPY --chown=hmcts:hmcts package.json yarn.lock ./
 
-RUN yarn install --immutable \
+RUN yarn workspaces focus --all --production \
   && yarn cache clean
 
 # ---- Runtime imge ----
