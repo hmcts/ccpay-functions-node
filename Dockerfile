@@ -4,8 +4,7 @@ USER root
 RUN corepack enable
 USER hmcts
 
-COPY --chown=hmcts:hmcts package.json yarn.lock ./
-
+COPY --chown=hmcts:hmcts . .
 RUN yarn workspaces focus --all --production \
   && yarn cache clean
 
