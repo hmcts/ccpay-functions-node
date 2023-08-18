@@ -134,8 +134,10 @@ async function sendMessage(msg) {
         })
         .catch(err => {
             console.log("Error while scheduling message ", err)
-        }).finally(async () => {
-            await topicClient.close();
-            await sBusClient.close();
+        }).finally(() => {
+            (async () => {
+                await topicClient.close();
+                await sBusClient.close();
+            })();
         })
 }
