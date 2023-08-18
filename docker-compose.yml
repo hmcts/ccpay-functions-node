@@ -1,0 +1,16 @@
+version: '2.1'
+
+services:
+  ccpay-callback-function:
+    build:
+      context: .
+      args:
+        - http_proxy
+        - https_proxy
+        - no_proxy
+    image: hmcts.azurecr.io/hmcts/ccpay-callback-function
+    container_name: ccpay-callback-function
+    environment:
+      - S2S_URL=http://rpe-service-auth-provider-aat.service.core-compute-aat.internal
+      - MICROSERVICE_PAYMENT_APP=payment_app
+
