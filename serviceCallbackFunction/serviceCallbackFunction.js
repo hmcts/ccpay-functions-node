@@ -55,9 +55,9 @@ module.exports = async function serviceCallbackFunction() {
                         json: true,
                         body: msg.body
                     }, function(error, response, body) {
-                    console.log('Response : ' + JSON.stringify(response));
+                    console.log('ccpay-callback-function Response: ' + JSON.stringify(response));
                     if(response && response.statusCode >= 200 && response.statusCode < 300) {
-                        console.log('Message Sent Successfully to ' + serviceCallbackUrl);
+                        console.log('ccpay-callback-function Message Sent Successfully to ' + serviceCallbackUrl);
                     } else {
                         console.log('Error in Calling Service ' + JSON.stringify(response));
                         if (!msg.userProperties.retries) {
