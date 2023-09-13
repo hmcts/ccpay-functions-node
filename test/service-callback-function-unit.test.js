@@ -4,7 +4,7 @@ const { ServiceBusClient } = require("@azure/service-bus");
 let serviceCallbackFunction = require('../serviceCallbackFunction/serviceCallbackFunction');
 
 let request = require('superagent');
-let s2sRequest = require('request-promise-native');
+let s2sRequest = require('axios');
 
 const sandbox = require('sinon').createSandbox();
 let chai = require('chai');
@@ -35,6 +35,7 @@ beforeEach(function () {
 describe("When messages are received", function () {
     before(function () {
         messages = [{
+            correlationId: 1234,
             body: JSON.stringify({
                 "amount": 3000000,
             }),
@@ -61,6 +62,7 @@ describe("When messages are received", function () {
 describe("When received message has no callback url", function () {
     before(function () {
         messages = [{
+            correlationId: 1234,
             body: JSON.stringify({
                 "amount": 3000000,
             }),
@@ -75,7 +77,7 @@ describe("When received message has no callback url", function () {
 
     it('if there is no callback url and error is logged and no url is called back', async function () {
         await serviceCallbackFunction();
-        expect(console.log).to.have.been.calledWithMatch('No service callback url...');
+        expect(console.log).to.have.been.calledWithMatch('1234: No service callback url...');
         expect(messages[0].deadLetter).to.have.been.called
     });
 });
@@ -87,7 +89,7 @@ describe("When no message recieved", function () {
 
     it('if there is no message, an info is logged', async function () {
         await serviceCallbackFunction();
-        expect(console.log).to.have.been.calledWith('no messages received from ServiceBusTopic!!!');
+        expect(console.log).to.have.been.calledWith('No messages received from ServiceBusTopic!!!');
     });
 
 });
@@ -96,6 +98,7 @@ describe("When no message recieved", function () {
 describe("When no body recieved", function () {
     before(function () {
         messages = [{
+            correlationId: 1234,
             complete: sandbox.stub(),
             deadLetter: sandbox.stub(),
         }
@@ -104,7 +107,7 @@ describe("When no body recieved", function () {
 
     it('if there is no body, an error is logged', async function () {
         await serviceCallbackFunction();
-        expect(console.log).to.have.been.calledWith('No body received');
+        expect(console.log).to.have.been.calledWith('1234: No body received');
         expect(messages[0].deadLetter).to.have.been.called
     });
 });
@@ -112,6 +115,7 @@ describe("When no body recieved", function () {
 describe("When no userproperties recieved", function () {
     before(function () {
         messages = [{
+            correlationId: 1234,
             body: JSON.stringify({
                 "amount": 3000000,
             }),
@@ -122,7 +126,7 @@ describe("When no userproperties recieved", function () {
 
     it('if there is no body, an error is logged', async function () {
         await serviceCallbackFunction();
-        expect(console.log).to.have.been.calledWith('No userProperties data');
+        expect(console.log).to.have.been.calledWith('1234: No userProperties data');
         expect(messages[0].deadLetter).to.have.been.called
     });
 });
@@ -133,6 +137,7 @@ describe("When serviceCallbackUrl returns success, s2sToken not received", funct
         sandbox.stub(s2sRequest, 'put').yields(null, {"statusCode":200}, null);
         sandbox.stub(s2sRequest, 'post').resolves({"status" : 500, "message" : "S2SToken Failed"});
         messages = [{
+            correlationId: 1234,
             body: JSON.stringify({
                 "amount": 3000000,
             }),
@@ -183,6 +188,7 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
         sandbox.stub(s2sRequest, 'put').yields(null, {"statusCode":500}, null);
         sandbox.stub(s2sRequest, 'post').resolves({"status" : 200, "token":"12345"});
         messages = [{
+            correlationId: 1234,
             body: JSON.stringify({
                 "amount": 3000000,
             }),
@@ -210,6 +216,7 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
         sandbox.stub(s2sRequest, 'put').yields(null, {"statusCode" : 500}, null);
         sandbox.stub(s2sRequest, 'post').resolves({"status" : 200, "token":"12345"});
         messages = [{
+            correlationId: 1234,
             body: JSON.stringify({
                 "amount": 3000000,
             }),
@@ -234,6 +241,7 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
         sandbox.stub(s2sRequest, 'put').yields(null, {"statusCode" : 500}, null);
         sandbox.stub(s2sRequest, 'post').resolves({"status" : 200, "token":"12345"});
         messages = [{
+            correlationId: 1234,
             body: JSON.stringify({
                 "amount": 3000000,
             }),
