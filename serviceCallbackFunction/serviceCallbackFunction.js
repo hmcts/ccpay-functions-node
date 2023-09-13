@@ -1,5 +1,4 @@
-const request = require('superagent');
-const s2sRequest = require('axios');
+const axiosRequest = require('axios');
 const { ServiceBusClient, ReceiveMode } = require("@azure/service-bus");
 const config = require('@hmcts/properties-volume').addTo(require('config'));
 const otp = require('otp');
@@ -39,24 +38,25 @@ module.exports = async function serviceCallbackFunction() {
                     oneTimePassword: otpPassword
                 };
 
-                s2sRequest.post({
-                    uri: s2sUrl + '/lease',
-                    body: serviceAuthRequest,
-                    json: true
-                }).then(token => {
+                axiosRequest.post(
+                    s2sUrl + '/lease',
+                    serviceAuthRequest
+                ).then(token => {
                     console.log(correlationId + ': S2S Token Retrieved.......');
-                    const serviceResponse  = s2sRequest.put({
-                        uri: serviceCallbackUrl,
+                    const options = {
                         headers: {
-                            ServiceAuthorization: token,
+                            'ServiceAuthorization': token.data,
                             'Content-Type': 'application/json'
-                        },
-                        json: true,
-                        body: msg.body
-                    }, function(error, response, body) {
-                    console.log(correlationId + ': ccpay-callback-function Response: ' + JSON.stringify(response));
-                    if(response && response.statusCode >= 200 && response.statusCode < 300) {
-                        console.log(correlationId + ': ccpay-callback-function Message Sent Successfully to ' + serviceCallbackUrl);
+                        }
+                    };
+                    const serviceResponse = axiosRequest.put(
+                        serviceCallbackUrl,
+                        msg.body,
+                        options
+                    ).then(response => {
+                    console.log(correlationId + ': Response: ' + JSON.stringify(response.data));
+                    if(response && response.status >= 200 && response.status < 300) {
+                        console.log(correlationId + ': Message Sent Successfully to ' + serviceCallbackUrl);
                     } else {
                         console.log(correlationId + ': Error in Calling Service ' + JSON.stringify(response));
                         if (!msg.userProperties.retries) {

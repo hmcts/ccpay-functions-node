@@ -3,8 +3,7 @@
 const { ServiceBusClient } = require("@azure/service-bus");
 let serviceCallbackFunction = require('../serviceCallbackFunction/serviceCallbackFunction');
 
-let request = require('superagent');
-let s2sRequest = require('axios');
+let axiosRequest = require('axios');
 
 const sandbox = require('sinon').createSandbox();
 let chai = require('chai');
@@ -46,15 +45,15 @@ describe("When messages are received", function () {
             complete: sandbox.stub(),
             clone: sandbox.stub()
         }];
-        sandbox.stub(s2sRequest, 'put').yields(null, {"statusCode":200}, null);
-        sandbox.stub(s2sRequest, 'post').resolves({"status" : 200, "token":"12345"});
+        sandbox.stub(axiosRequest, 'put').yields(null, {"statusCode":200}, null);
+        sandbox.stub(axiosRequest, 'post').resolves({"status" : 200, "token":"12345"});
     });
 
     it('the desired url is called back', async function () {
 
         await serviceCallbackFunction();
-        expect(s2sRequest.post).to.have.been.calledOnce;
-        expect(s2sRequest.put).to.have.been.calledOnce;
+        expect(axiosRequest.post).to.have.been.calledOnce;
+        expect(axiosRequest.put).to.have.been.calledOnce;
         expect(messages[0].complete).to.have.been.called;
     });
 });
@@ -133,9 +132,8 @@ describe("When no userproperties recieved", function () {
 
 describe("When serviceCallbackUrl returns success, s2sToken not received", function () {
     before(function () {
-        //request.send = sandbox.stub().returns({ "status": 200 });
-        sandbox.stub(s2sRequest, 'put').yields(null, {"statusCode":200}, null);
-        sandbox.stub(s2sRequest, 'post').resolves({"status" : 500, "message" : "S2SToken Failed"});
+        sandbox.stub(axiosRequest, 'put').resolves({"token":{status:200}});
+        sandbox.stub(axiosRequest, 'post').resolves({"error":{"message":"S2SToken Failed",status:500}});
         messages = [{
             correlationId: 1234,
             body: JSON.stringify({
@@ -152,15 +150,15 @@ describe("When serviceCallbackUrl returns success, s2sToken not received", funct
 
     it('if there is an error from S2S Service Token, an error is logged', async function () {
         await serviceCallbackFunction();
-        expect(s2sRequest.post).to.have.been.calledOnce;
+        expect(axiosRequest.post).to.have.been.calledOnce;
     });
 });
 
 
 describe("When serviceCallbackUrl returns error, deadletter success", function () {
     before(function () {
-        sandbox.stub(s2sRequest, 'put').yields(null, {"statusCode":500}, null);
-        sandbox.stub(s2sRequest, 'post').resolves({"status" : 200, "token":"12345"});
+        sandbox.stub(axiosRequest, 'put').resolves({"token":{status:500}});
+        sandbox.stub(axiosRequest, 'post').resolves({"token":{"data":"12345",status:200}});
         messages = [{
             body: JSON.stringify({
                 "amount": 3000000,
@@ -176,7 +174,7 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
 
     it('if there is an error from serviceCallbackUrl, an error is logged', async function () {
         await serviceCallbackFunction();
-        expect(s2sRequest.put).to.have.been.calledOnce;
+        expect(axiosRequest.put).to.have.been.calledOnce;
         expect(messages[0].clone).to.have.been.called
         expect(messages[0].userProperties.retries).to.equals(1);
     });
@@ -185,8 +183,8 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
 
 describe("When serviceCallbackUrl returns error, deadletter success", function () {
     before(function () {
-        sandbox.stub(s2sRequest, 'put').yields(null, {"statusCode":500}, null);
-        sandbox.stub(s2sRequest, 'post').resolves({"status" : 200, "token":"12345"});
+        sandbox.stub(axiosRequest, 'put').resolves({"token":{"data":"",status:500}});
+        sandbox.stub(axiosRequest, 'post').resolves({"token":{"data":"12345",status:200}});
         messages = [{
             correlationId: 1234,
             body: JSON.stringify({
@@ -205,7 +203,7 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
          await serviceCallbackFunction();
          await serviceCallbackFunction();
          await serviceCallbackFunction();
-         expect(s2sRequest.put).to.have.been.calledThrice;
+         expect(axiosRequest.put).to.have.been.calledThrice;
          expect(messages[0].clone).to.have.been.called
          expect(messages[0].userProperties.retries).to.equals(3);
      });
@@ -213,8 +211,8 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
 
 describe("When serviceCallbackUrl returns error, deadletter fails", function () {
     before(function () {
-        sandbox.stub(s2sRequest, 'put').yields(null, {"statusCode" : 500}, null);
-        sandbox.stub(s2sRequest, 'post').resolves({"status" : 200, "token":"12345"});
+        sandbox.stub(axiosRequest, 'put').resolves({"token":{"data":"",status:500}});
+        sandbox.stub(axiosRequest, 'post').resolves({"token":{"data":"12345",status:200}});
         messages = [{
             correlationId: 1234,
             body: JSON.stringify({
@@ -231,15 +229,15 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
 
     it('if there is an error from serviceCallbackUrl, an error is logged', async function () {
         await serviceCallbackFunction();
-        expect(s2sRequest.put).to.have.been.calledOnce;
+        expect(axiosRequest.put).to.have.been.calledOnce;
     });
 
 });
 
 describe("When serviceCallbackUrl returns error, deadletter fails", function () {
     before(function () {
-        sandbox.stub(s2sRequest, 'put').yields(null, {"statusCode" : 500}, null);
-        sandbox.stub(s2sRequest, 'post').resolves({"status" : 200, "token":"12345"});
+        sandbox.stub(axiosRequest, 'put').yields(null, {"statusCode" : 500}, null);
+        sandbox.stub(axiosRequest, 'post').resolves({"status" : 200, "token":"12345"});
         messages = [{
             correlationId: 1234,
             body: JSON.stringify({
@@ -259,7 +257,7 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
          await serviceCallbackFunction();
          await serviceCallbackFunction();
          await serviceCallbackFunction();
-         expect(s2sRequest.put).to.have.been.calledThrice;
+         expect(axiosRequest.put).to.have.been.calledThrice;
      });
 });
 
