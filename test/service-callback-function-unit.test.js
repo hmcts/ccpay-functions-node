@@ -54,10 +54,11 @@ describe("When messages are received", function () {
         expect(axiosRequest.post).to.have.been.calledOnce;
         expect(axiosRequest.put).to.have.been.calledOnce;
         expect(messages[0].complete).to.have.been.called;
-        expect(console.log).to.have.been.callCount(5);
+        expect(console.log).to.have.been.callCount(6);
         expect(console.log).to.have.been.calledWithMatch('1234: Received callback message:');
         expect(console.log).to.have.been.calledWith('1234: Received Callback Message is Valid!!!');
         expect(console.log).to.have.been.calledWith('1234: S2S Token Retrieved.......');
+        expect(console.log).to.have.been.calledWithMatch('1234: About to post to callback');
         expect(console.log).to.have.been.calledWith('1234: Response: {"amount":3000000}');
         expect(console.log).to.have.been.calledWith('1234: Message Sent Successfully to www.example.com');
     });
@@ -159,6 +160,32 @@ describe("When serviceCallbackUrl returns success, s2sToken not received", funct
     });
 });
 
+describe("When serviceCallbackUrl returns success, but sending callback request fails", function () {
+    let error = new Error("Callback Failed");
+    before(function () {
+        messages = [{
+            correlationId: 1234,
+            body: JSON.stringify({
+                "amount": 3000000,
+            }),
+            userProperties: {
+                retries: 0,
+                serviceCallbackUrl: 'www.example.com'
+            },
+            complete: sandbox.stub(),
+            clone: sandbox.stub()
+        }];
+        sandbox.stub(axiosRequest, 'put').throws(error);
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
+    });
+
+    it('if there is an error from Callback, an error is logged', async function () {
+        await serviceCallbackFunction();
+        expect(axiosRequest.put).to.throw(error);
+        expect(axiosRequest.post).to.have.been.calledOnce;
+    });
+});
+
 describe("When serviceCallbackUrl generates unrecoverable error", function () {
     let err = new Error("S2SToken Failed");
     before(function () {
@@ -174,7 +201,6 @@ describe("When serviceCallbackUrl generates unrecoverable error", function () {
     it('if there is an error from validating message, an error is logged', async function () {
         await serviceCallbackFunction();
         expect(console.log).to.have.been.calledWith('1234: Skipping processing invalid message and sending to dead letterundefined');
-
     });
 });
 

@@ -49,6 +49,7 @@ module.exports = async function serviceCallbackFunction() {
                             'Content-Type': 'application/json'
                         }
                     };
+                    console.log(correlationId + ': About to post to callback', serviceCallbackUrl, msg.body);
                     axiosRequest.put(
                         serviceCallbackUrl,
                         msg.body,
@@ -76,9 +77,11 @@ module.exports = async function serviceCallbackFunction() {
                                 sendMessage(msg.clone());
                             }
                         }
+                    }).catch((callbackError) => {
+                        console.log(correlationId + ': Error in fetching callback request ' + callbackError);
                     });
-                }).catch(error => {
-                    console.log(correlationId + ': Error in fetching S2S token message ' + error.message + ' response ' + error.response);
+                }).catch((s2sError) => {
+                    console.log(correlationId + ': Error in fetching S2S token message ' + s2sError);
                 });
             } else {
                 console.log(correlationId + ': Skipping processing invalid message and sending to dead letter' + JSON.stringify(msg.body));
