@@ -49,7 +49,7 @@ module.exports = async function serviceCallbackFunction() {
                             'Content-Type': 'application/json'
                         }
                     };
-                    console.log(correlationId + ': About to post to callback', serviceCallbackUrl, msg.body, JSON.stringify(options));
+                    console.log(correlationId + ': About to post to callback ', serviceCallbackUrl);
                     axiosRequest.put(
                         serviceCallbackUrl,
                         msg.body,
@@ -101,7 +101,7 @@ module.exports = async function serviceCallbackFunction() {
 }
 
 validateMessage = message => {
-    let correlationId = message.correlationId;
+    const correlationId = message.correlationId;
     if (!message.body) {
         console.log(correlationId + ': No body received');
         return false;
