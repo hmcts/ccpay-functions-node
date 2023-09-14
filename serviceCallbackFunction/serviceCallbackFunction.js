@@ -49,7 +49,7 @@ module.exports = async function serviceCallbackFunction() {
                             'Content-Type': 'application/json'
                         }
                     };
-                    console.log(correlationId + ': About to post to callback', serviceCallbackUrl, msg.body, token.data);
+                    console.log(correlationId + ': About to post to callback', serviceCallbackUrl, msg.body, JSON.stringify(options));
                     axiosRequest.put(
                         serviceCallbackUrl,
                         msg.body,
