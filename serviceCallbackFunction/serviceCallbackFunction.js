@@ -49,33 +49,33 @@ module.exports = async function serviceCallbackFunction() {
                             'Content-Type': 'application/json'
                         }
                     };
-                    const serviceResponse = axiosRequest.put(
+                    axiosRequest.put(
                         serviceCallbackUrl,
                         msg.body,
                         options
                     ).then(response => {
-                    console.log(correlationId + ': Response: ' + JSON.stringify(response.data));
-                    if(response && response.status >= 200 && response.status < 300) {
-                        console.log(correlationId + ': Message Sent Successfully to ' + serviceCallbackUrl);
-                    } else {
-                        console.log(correlationId + ': Error in Calling Service ' + JSON.stringify(response));
-                        if (!msg.userProperties.retries) {
-                            msg.userProperties.retries = 0;
-                        }
-                        if (msg.userProperties.retries === MAX_RETRIES) {
-                            console.log(correlationId + ": Max number of retries reached for ", JSON.stringify(msg.body));
-                            msg.deadLetter()
-                                .then(() => {
-                                    console.log(correlationId + ": Dead lettered a message ", JSON.stringify(msg.body));
-                                })
-                                .catch(err => {
-                                    console.log(correlationId + ": Error while dead letter messages ", err)
-                                });
+                        console.log(correlationId + ': Response: ' + JSON.stringify(response.data));
+                        if(response && response.status >= 200 && response.status < 300) {
+                            console.log(correlationId + ': Message Sent Successfully to ' + serviceCallbackUrl);
                         } else {
-                            msg.userProperties.retries++;
-                            sendMessage(msg.clone());
+                            console.log(correlationId + ': Error in Calling Service ' + JSON.stringify(response));
+                            if (!msg.userProperties.retries) {
+                                msg.userProperties.retries = 0;
+                            }
+                            if (msg.userProperties.retries === MAX_RETRIES) {
+                                console.log(correlationId + ": Max number of retries reached for ", JSON.stringify(msg.body));
+                                msg.deadLetter()
+                                    .then(() => {
+                                        console.log(correlationId + ": Dead lettered a message ", JSON.stringify(msg.body));
+                                    })
+                                    .catch(err => {
+                                        console.log(correlationId + ": Error while dead letter messages ", err)
+                                    });
+                            } else {
+                                msg.userProperties.retries++;
+                                sendMessage(msg.clone());
+                            }
                         }
-                    }
                     });
                 }).catch(error => {
                     console.log(correlationId + ': Error in fetching S2S token message ' + error.message + ' response ' + error.response);

@@ -45,16 +45,21 @@ describe("When messages are received", function () {
             complete: sandbox.stub(),
             clone: sandbox.stub()
         }];
-        sandbox.stub(axiosRequest, 'put').yields(null, {"statusCode":200}, null);
-        sandbox.stub(axiosRequest, 'post').resolves({"status" : 200, "token":"12345"});
+        sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
     });
 
     it('the desired url is called back', async function () {
-
         await serviceCallbackFunction();
         expect(axiosRequest.post).to.have.been.calledOnce;
         expect(axiosRequest.put).to.have.been.calledOnce;
         expect(messages[0].complete).to.have.been.called;
+        expect(console.log).to.have.been.callCount(5);
+        expect(console.log).to.have.been.calledWithMatch('1234: Received callback message:');
+        expect(console.log).to.have.been.calledWith('1234: Received Callback Message is Valid!!!');
+        expect(console.log).to.have.been.calledWith('1234: S2S Token Retrieved.......');
+        expect(console.log).to.have.been.calledWith('1234: Response: {"amount":3000000}');
+        expect(console.log).to.have.been.calledWith('1234: Message Sent Successfully to www.example.com');
     });
 });
 
@@ -131,9 +136,9 @@ describe("When no userproperties recieved", function () {
 });
 
 describe("When serviceCallbackUrl returns success, s2sToken not received", function () {
+    let error = new Error("S2SToken Failed");
     before(function () {
-        sandbox.stub(axiosRequest, 'put').resolves({"token":{status:200}});
-        sandbox.stub(axiosRequest, 'post').resolves({"error":{"message":"S2SToken Failed",status:500}});
+        sandbox.stub(axiosRequest, 'post').throws(error);
         messages = [{
             correlationId: 1234,
             body: JSON.stringify({
@@ -150,15 +155,33 @@ describe("When serviceCallbackUrl returns success, s2sToken not received", funct
 
     it('if there is an error from S2S Service Token, an error is logged', async function () {
         await serviceCallbackFunction();
-        expect(axiosRequest.post).to.have.been.calledOnce;
+        expect(axiosRequest.post).to.throw(error)
     });
 });
 
+describe("When serviceCallbackUrl generates unrecoverable error", function () {
+    let err = new Error("S2SToken Failed");
+    before(function () {
+        messages = [{
+            correlationId: 1234,
+            body: sandbox.stub().throws(err),
+            complete: sandbox.stub().resolves(),
+            clone: sandbox.stub(),
+            deadLetter: sandbox.stub().resolves()
+        }];
+    });
+
+    it('if there is an error from validating message, an error is logged', async function () {
+        await serviceCallbackFunction();
+        expect(console.log).to.have.been.calledWith('1234: Skipping processing invalid message and sending to dead letterundefined');
+
+    });
+});
 
 describe("When serviceCallbackUrl returns error, deadletter success", function () {
     before(function () {
-        sandbox.stub(axiosRequest, 'put').resolves({"token":{status:500}});
-        sandbox.stub(axiosRequest, 'post').resolves({"token":{"data":"12345",status:200}});
+        sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
         messages = [{
             body: JSON.stringify({
                 "amount": 3000000,
@@ -183,8 +206,8 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
 
 describe("When serviceCallbackUrl returns error, deadletter success", function () {
     before(function () {
-        sandbox.stub(axiosRequest, 'put').resolves({"token":{"data":"",status:500}});
-        sandbox.stub(axiosRequest, 'post').resolves({"token":{"data":"12345",status:200}});
+        sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
         messages = [{
             correlationId: 1234,
             body: JSON.stringify({
@@ -211,8 +234,8 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
 
 describe("When serviceCallbackUrl returns error, deadletter fails", function () {
     before(function () {
-        sandbox.stub(axiosRequest, 'put').resolves({"token":{"data":"",status:500}});
-        sandbox.stub(axiosRequest, 'post').resolves({"token":{"data":"12345",status:200}});
+        sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
         messages = [{
             correlationId: 1234,
             body: JSON.stringify({
@@ -236,8 +259,8 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
 
 describe("When serviceCallbackUrl returns error, deadletter fails", function () {
     before(function () {
-        sandbox.stub(axiosRequest, 'put').yields(null, {"statusCode" : 500}, null);
-        sandbox.stub(axiosRequest, 'post').resolves({"status" : 200, "token":"12345"});
+        sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
         messages = [{
             correlationId: 1234,
             body: JSON.stringify({
