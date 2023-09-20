@@ -60,28 +60,15 @@ module.exports = async function serviceCallbackFunction() {
                             console.log(correlationId + ': Message Sent Successfully to ' + serviceCallbackUrl);
                         } else {
                             console.log(correlationId + ': Error in Calling Service ' + JSON.stringify(response));
-                            if (!msg.userProperties.retries) {
-                                msg.userProperties.retries = 0;
-                            }
-                            if (msg.userProperties.retries === MAX_RETRIES) {
-                                console.log(correlationId + ": Max number of retries reached for ", JSON.stringify(msg.body));
-                                msg.deadLetter()
-                                    .then(() => {
-                                        console.log(correlationId + ": Dead lettered a message ", JSON.stringify(msg.body));
-                                    })
-                                    .catch(err => {
-                                        console.log(correlationId + ": Error while dead letter messages ", err)
-                                    });
-                            } else {
-                                msg.userProperties.retries++;
-                                sendMessage(msg.clone());
-                            }
+                            retryOrDeadLetter(msg);
                         }
                     }).catch((callbackError) => {
                         console.log(correlationId + ': Error in fetching callback request ' + callbackError);
+                        retryOrDeadLetter(msg);
                     });
                 }).catch((s2sError) => {
                     console.log(correlationId + ': Error in fetching S2S token message ' + s2sError);
+                        retryOrDeadLetter(msg);
                 });
             } else {
                 console.log(correlationId + ': Skipping processing invalid message and sending to dead letter' + JSON.stringify(msg.body));
@@ -89,6 +76,7 @@ module.exports = async function serviceCallbackFunction() {
             }
         } catch (err) {
             console.log(correlationId + ': Error response received from ', serviceCallbackUrl, err);
+          retryOrDeadLetter(msg);
         } finally {
             if (!msg.isSettled) {
                 await msg.complete();
@@ -98,6 +86,26 @@ module.exports = async function serviceCallbackFunction() {
     }
     await subscriptionClient.close();
     await sbClient.close();
+}
+
+retryOrDeadLetter = msg => {
+    let correlationId = msg.correlationId;
+    if (!msg.userProperties.retries) {
+        msg.userProperties.retries = 0;
+    }
+    if (msg.userProperties.retries === MAX_RETRIES) {
+        console.log(correlationId + ": Max number of retries reached for ", JSON.stringify(msg.body));
+        msg.deadLetter()
+            .then(() => {
+                console.log(correlationId + ": Dead lettered a message ", JSON.stringify(msg.body));
+            })
+            .catch(err => {
+                console.log(correlationId + ": Error while dead letter messages ", err)
+            });
+    } else {
+        msg.userProperties.retries++;
+        sendMessage(msg.clone());
+    }
 }
 
 validateMessage = message => {

@@ -136,7 +136,7 @@ describe("When no userproperties recieved", function () {
     });
 });
 
-describe("When serviceCallbackUrl returns success, s2sToken not received", function () {
+describe("When serviceCallbackUrl returns success, s2sToken not received. 3 retries expected so 4 attempts in all.", function () {
     let error = new Error("S2SToken Failed");
     before(function () {
         sandbox.stub(axiosRequest, 'post').throws(error);
@@ -156,11 +156,16 @@ describe("When serviceCallbackUrl returns success, s2sToken not received", funct
 
     it('if there is an error from S2S Service Token, an error is logged', async function () {
         await serviceCallbackFunction();
+        await serviceCallbackFunction();
+        await serviceCallbackFunction();
         expect(axiosRequest.post).to.throw(error)
+        expect(axiosRequest.post).callCount(4);
+        expect(messages[0].userProperties.retries).to.equals(3);
+        expect(messages[0].clone).to.have.been.called
     });
 });
 
-describe("When serviceCallbackUrl returns success, but sending callback request fails", function () {
+describe("When serviceCallbackUrl returns success, but sending callback request fails. 3 retries expected so 4 attempts in all.", function () {
     let error = new Error("Callback Failed");
     before(function () {
         messages = [{
@@ -169,7 +174,6 @@ describe("When serviceCallbackUrl returns success, but sending callback request 
                 "amount": 3000000,
             }),
             userProperties: {
-                retries: 0,
                 serviceCallbackUrl: 'www.example.com'
             },
             complete: sandbox.stub(),
@@ -181,8 +185,12 @@ describe("When serviceCallbackUrl returns success, but sending callback request 
 
     it('if there is an error from Callback, an error is logged', async function () {
         await serviceCallbackFunction();
+        await serviceCallbackFunction();
+        await serviceCallbackFunction();
         expect(axiosRequest.put).to.throw(error);
-        expect(axiosRequest.post).to.have.been.calledOnce;
+        expect(axiosRequest.put).to.have.been.callCount(4);
+        expect(messages[0].clone).to.have.been.called
+        expect(messages[0].userProperties.retries).to.equals(3); 
     });
 });
 
