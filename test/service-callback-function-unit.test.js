@@ -136,7 +136,7 @@ describe("When no userproperties recieved", function () {
     });
 });
 
-describe("When serviceCallbackUrl returns success, s2sToken not received. 3 retries expected so 4 attempts in all.", function () {
+describe("When serviceCallbackUrl returns success, s2sToken not received. 5 retries expected so 6 attempts in total.", function () {
     let error = new Error("S2SToken Failed");
     before(function () {
         sandbox.stub(axiosRequest, 'post').throws(error);
@@ -158,14 +158,16 @@ describe("When serviceCallbackUrl returns success, s2sToken not received. 3 retr
         await serviceCallbackFunction();
         await serviceCallbackFunction();
         await serviceCallbackFunction();
+        await serviceCallbackFunction();
+        await serviceCallbackFunction();
         expect(axiosRequest.post).to.throw(error)
-        expect(axiosRequest.post).callCount(4);
-        expect(messages[0].userProperties.retries).to.equals(3);
+        expect(axiosRequest.post).callCount(6);
+        expect(messages[0].userProperties.retries).to.equals(5);
         expect(messages[0].clone).to.have.been.called
     });
 });
 
-describe("When serviceCallbackUrl returns success, but sending callback request fails. 3 retries expected so 4 attempts in all.", function () {
+describe("When serviceCallbackUrl returns success, but sending callback request fails. 5 retries expected so 6 attempts in total.", function () {
     let error = new Error("Callback Failed");
     before(function () {
         messages = [{
@@ -187,10 +189,12 @@ describe("When serviceCallbackUrl returns success, but sending callback request 
         await serviceCallbackFunction();
         await serviceCallbackFunction();
         await serviceCallbackFunction();
+        await serviceCallbackFunction();
+        await serviceCallbackFunction();
         expect(axiosRequest.put).to.throw(error);
-        expect(axiosRequest.put).to.have.been.callCount(4);
+        expect(axiosRequest.put).callCount(6);
         expect(messages[0].clone).to.have.been.called
-        expect(messages[0].userProperties.retries).to.equals(3); 
+        expect(messages[0].userProperties.retries).to.equals(5); 
     });
 });
 
