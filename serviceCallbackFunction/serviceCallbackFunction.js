@@ -105,7 +105,7 @@ retryOrDeadLetter = msg => {
     } else {
         console.log(correlationId + ": Will retry message at a later time ", JSON.stringify(msg.body));
         msg.userProperties.retries++;
-        sendMessage(msg.clone());
+        sendMessage(msg.clone(), correlationId);
     }
 }
 
@@ -134,7 +134,7 @@ validateMessage = message => {
 }
 
 
-async function sendMessage(msg) {
+async function sendMessage(msg, correlationId) {
     const sBusClient = ServiceBusClient.createFromConnectionString(connectionString);
     const topicClient = sBusClient.createTopicClient(topicName);
     const topicSender = topicClient.createSender();

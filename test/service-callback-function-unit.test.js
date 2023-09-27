@@ -164,6 +164,7 @@ describe("When serviceCallbackUrl returns success, s2sToken not received. 5 retr
         expect(axiosRequest.post).callCount(6);
         expect(messages[0].userProperties.retries).to.equals(5);
         expect(console.log).to.have.been.calledWithMatch('1234: Will retry message at a later time');
+        expect(console.log).to.have.been.calledWithMatch('1234: Message is scheduled to retry at UTC:');
         expect(messages[0].clone).to.have.been.called
     });
 });
@@ -261,13 +262,15 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
         }];
     });
 
-    it('if there is an error from serviceCallbackUrl for 3 times', async function () {
+    it('if there is an error from serviceCallbackUrl for 5 times', async function () {
          await serviceCallbackFunction();
          await serviceCallbackFunction();
          await serviceCallbackFunction();
-         expect(axiosRequest.put).to.have.been.calledThrice;
+         await serviceCallbackFunction();
+         await serviceCallbackFunction();
+         expect(axiosRequest.put).to.have.been.callCount(5);
          expect(messages[0].clone).to.have.been.called
-         expect(messages[0].userProperties.retries).to.equals(3);
+         expect(messages[0].userProperties.retries).to.equals(5);
      });
 });
 
@@ -315,7 +318,7 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
     });
 
 
-     it('if there is an error from serviceCallbackUrl for 3 times', async function () {
+     it('if there is an error from serviceCallbackUrl for 5 times', async function () {
          await serviceCallbackFunction();
          await serviceCallbackFunction();
          await serviceCallbackFunction();
