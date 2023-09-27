@@ -103,7 +103,7 @@ retryOrDeadLetter = msg => {
                 console.log(correlationId + ": Error while dead letter messages ", err)
             });
     } else {
-        console.log(correlationId + ": Will try message at a later time ", JSON.stringify(msg.body));
+        console.log(correlationId + ": Will retry message at a later time ", JSON.stringify(msg.body));
         msg.userProperties.retries++;
         sendMessage(msg.clone());
     }
