@@ -163,6 +163,7 @@ describe("When serviceCallbackUrl returns success, s2sToken not received. 5 retr
         expect(axiosRequest.post).to.throw(error)
         expect(axiosRequest.post).callCount(6);
         expect(messages[0].userProperties.retries).to.equals(5);
+        expect(console.log).to.have.been.calledWithMatch('1234: Will try message at a later time');
         expect(messages[0].clone).to.have.been.called
     });
 });
