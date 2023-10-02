@@ -26,11 +26,13 @@ module.exports = async function serviceCallbackFunction() {
         let msg = messages[i];
         let serviceCallbackUrl;
         let serviceName;
-        let correlationId = msg.correlationId;
+        let correlationId = msg.correlationId === undefined ? Math.floor(100000 + Math.random() * 900000) : msg.correlationId;
         try {
             if (this.validateMessage(msg)) {
                 serviceCallbackUrl = msg.userProperties.serviceCallbackUrl;
                 serviceName = msg.userProperties.serviceName;
+
+                console.log(correlationId + ': Updated serviceCallbackFunction with fixed retries!');
 
                 const otpPassword = otp({ secret: s2sSecret }).totp();
                 const serviceAuthRequest = {
@@ -49,7 +51,7 @@ module.exports = async function serviceCallbackFunction() {
                             'Content-Type': 'application/json'
                         }
                     };
-                    console.log(correlationId + ': About to post to callback ', serviceCallbackUrl);
+                    console.log(correlationId + ': About to post callback URL ', serviceCallbackUrl);
                     axiosRequest.put(
                         serviceCallbackUrl,
                         msg.body,
@@ -72,7 +74,7 @@ module.exports = async function serviceCallbackFunction() {
                 });
             } else {
                 console.log(correlationId + ': Skipping processing invalid message and sending to dead letter' + JSON.stringify(msg.body));
-                await msg.deadLetter()
+                await msg.deadLetter();
             }
         } catch (err) {
             console.log(correlationId + ': Error response received from ', serviceCallbackUrl, err);

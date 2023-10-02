@@ -54,11 +54,12 @@ describe("When messages are received", function () {
         expect(axiosRequest.post).to.have.been.calledOnce;
         expect(axiosRequest.put).to.have.been.calledOnce;
         expect(messages[0].complete).to.have.been.called;
-        expect(console.log).to.have.been.callCount(6);
+        expect(console.log).to.have.been.callCount(7);
+        expect(console.log).to.have.been.calledWith('1234: Updated serviceCallbackFunction with fixed retries!');
         expect(console.log).to.have.been.calledWithMatch('1234: Received callback message:');
         expect(console.log).to.have.been.calledWith('1234: Received Callback Message is Valid!!!');
         expect(console.log).to.have.been.calledWith('1234: S2S Token Retrieved.......');
-        expect(console.log).to.have.been.calledWithMatch('1234: About to post to callback');
+        expect(console.log).to.have.been.calledWithMatch('1234: About to post callback URL');
         expect(console.log).to.have.been.calledWith('1234: Response: {"amount":3000000}');
         expect(console.log).to.have.been.calledWith('1234: Message Sent Successfully to www.example.com');
     });
