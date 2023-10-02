@@ -2,6 +2,7 @@ const axiosRequest = require('axios');
 const { ServiceBusClient, ReceiveMode } = require("@azure/service-bus");
 const config = require('@hmcts/properties-volume').addTo(require('config'));
 const otp = require('otp');
+const { randomInt } = require('crypto');
 
 const connectionString = config.get('servicecallbackBusConnection');
 const topicName = config.get('servicecallbackTopicName');
@@ -26,7 +27,7 @@ module.exports = async function serviceCallbackFunction() {
         let msg = messages[i];
         let serviceCallbackUrl;
         let serviceName;
-        let correlationId = msg.correlationId === undefined ? Math.floor(100000 + Math.random() * 900000) : msg.correlationId;
+        let correlationId = msg.correlationId === undefined ? randomInt(100000,999999) : msg.correlationId;
 
         try {
             if (this.validateMessage(msg)) {
@@ -63,6 +64,9 @@ module.exports = async function serviceCallbackFunction() {
                             console.log(correlationId + ': Error in Calling Service ' + JSON.stringify(response));
                             retryOrDeadLetter(msg);
                         }
+                    }).catch((callbackError) => {
+                        console.log(correlationId + ': Error in fetching callback request ' + callbackError);
+                        retryOrDeadLetter(msg);
                     });
                 }).catch((s2sError) => {
                     console.log(correlationId + ': Error in fetching S2S token message ' + s2sError);
