@@ -27,13 +27,12 @@ module.exports = async function serviceCallbackFunction() {
         let serviceCallbackUrl;
         let serviceName;
         let correlationId = msg.correlationId === undefined ? Math.floor(100000 + Math.random() * 900000) : msg.correlationId;
+
         try {
             if (this.validateMessage(msg)) {
                 serviceCallbackUrl = msg.userProperties.serviceCallbackUrl;
                 serviceName = msg.userProperties.serviceName;
-
-                console.log(correlationId + ': Updated serviceCallbackFunction with fixed retries!');
-
+                console.log(correlationId + ': Processing message from service ' + serviceName);
                 const otpPassword = otp({ secret: s2sSecret }).totp();
                 const serviceAuthRequest = {
                     microservice: microService,
@@ -64,13 +63,10 @@ module.exports = async function serviceCallbackFunction() {
                             console.log(correlationId + ': Error in Calling Service ' + JSON.stringify(response));
                             retryOrDeadLetter(msg);
                         }
-                    }).catch((callbackError) => {
-                        console.log(correlationId + ': Error in fetching callback request ' + callbackError);
-                        retryOrDeadLetter(msg);
                     });
                 }).catch((s2sError) => {
                     console.log(correlationId + ': Error in fetching S2S token message ' + s2sError);
-                        retryOrDeadLetter(msg);
+                    retryOrDeadLetter(msg);
                 });
             } else {
                 console.log(correlationId + ': Skipping processing invalid message and sending to dead letter' + JSON.stringify(msg.body));
