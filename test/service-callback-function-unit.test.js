@@ -12,7 +12,7 @@ let sinonChai = require('sinon-chai');
 
 chai.use(sinonChai);
 
-let messages, loggerStub;
+let messages, loggerStub, response;
 beforeEach(function () {
     console = {
         log: sandbox.stub()
@@ -40,6 +40,7 @@ describe("When messages are received", function () {
             }),
             userProperties: {
                 retries: 0,
+                serviceName: 'Example',
                 serviceCallbackUrl: 'www.example.com'
             },
             complete: sandbox.stub(),
@@ -54,11 +55,12 @@ describe("When messages are received", function () {
         expect(axiosRequest.post).to.have.been.calledOnce;
         expect(axiosRequest.put).to.have.been.calledOnce;
         expect(messages[0].complete).to.have.been.called;
-        expect(console.log).to.have.been.callCount(6);
+        expect(console.log).to.have.been.callCount(7);
+        expect(console.log).to.have.been.calledWith('1234: Processing message from service Example');
         expect(console.log).to.have.been.calledWithMatch('1234: Received callback message:');
         expect(console.log).to.have.been.calledWith('1234: Received Callback Message is Valid!!!');
         expect(console.log).to.have.been.calledWith('1234: S2S Token Retrieved.......');
-        expect(console.log).to.have.been.calledWithMatch('1234: About to post to callback');
+        expect(console.log).to.have.been.calledWithMatch('1234: About to post callback URL');
         expect(console.log).to.have.been.calledWith('1234: Response: {"amount":3000000}');
         expect(console.log).to.have.been.calledWith('1234: Message Sent Successfully to www.example.com');
     });
@@ -136,7 +138,7 @@ describe("When no userproperties recieved", function () {
     });
 });
 
-describe("When serviceCallbackUrl returns success, s2sToken not received", function () {
+describe("When serviceCallbackUrl returns success, s2sToken not received. 5 retries expected so 6 attempts in total.", function () {
     let error = new Error("S2SToken Failed");
     before(function () {
         sandbox.stub(axiosRequest, 'post').throws(error);
@@ -156,11 +158,20 @@ describe("When serviceCallbackUrl returns success, s2sToken not received", funct
 
     it('if there is an error from S2S Service Token, an error is logged', async function () {
         await serviceCallbackFunction();
+        await serviceCallbackFunction();
+        await serviceCallbackFunction();
+        await serviceCallbackFunction();
+        await serviceCallbackFunction();
         expect(axiosRequest.post).to.throw(error)
+        expect(axiosRequest.post).callCount(6);
+        expect(messages[0].userProperties.retries).to.equals(5);
+        expect(console.log).to.have.been.calledWithMatch('1234: Will retry message at a later time');
+        expect(console.log).to.have.been.calledWithMatch('1234: Message is scheduled to retry at UTC:');
+        expect(messages[0].clone).to.have.been.called
     });
 });
 
-describe("When serviceCallbackUrl returns success, but sending callback request fails", function () {
+describe("When serviceCallbackUrl returns success, but sending callback request fails. 5 retries expected so 6 attempts in total.", function () {
     let error = new Error("Callback Failed");
     before(function () {
         messages = [{
@@ -169,7 +180,6 @@ describe("When serviceCallbackUrl returns success, but sending callback request 
                 "amount": 3000000,
             }),
             userProperties: {
-                retries: 0,
                 serviceCallbackUrl: 'www.example.com'
             },
             complete: sandbox.stub(),
@@ -181,8 +191,14 @@ describe("When serviceCallbackUrl returns success, but sending callback request 
 
     it('if there is an error from Callback, an error is logged', async function () {
         await serviceCallbackFunction();
+        await serviceCallbackFunction();
+        await serviceCallbackFunction();
+        await serviceCallbackFunction();
+        await serviceCallbackFunction();
         expect(axiosRequest.put).to.throw(error);
-        expect(axiosRequest.post).to.have.been.calledOnce;
+        expect(axiosRequest.put).callCount(6);
+        expect(messages[0].clone).to.have.been.called
+        expect(messages[0].userProperties.retries).to.equals(5); 
     });
 });
 
@@ -248,13 +264,15 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
         }];
     });
 
-    it('if there is an error from serviceCallbackUrl for 3 times', async function () {
+    it('if there is an error from serviceCallbackUrl for 5 times', async function () {
          await serviceCallbackFunction();
          await serviceCallbackFunction();
          await serviceCallbackFunction();
-         expect(axiosRequest.put).to.have.been.calledThrice;
+         await serviceCallbackFunction();
+         await serviceCallbackFunction();
+         expect(axiosRequest.put).to.have.been.callCount(5);
          expect(messages[0].clone).to.have.been.called
-         expect(messages[0].userProperties.retries).to.equals(3);
+         expect(messages[0].userProperties.retries).to.equals(5);
      });
 });
 
@@ -302,7 +320,7 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
     });
 
 
-     it('if there is an error from serviceCallbackUrl for 3 times', async function () {
+     it('if there is an error from serviceCallbackUrl for 5 times', async function () {
          await serviceCallbackFunction();
          await serviceCallbackFunction();
          await serviceCallbackFunction();
