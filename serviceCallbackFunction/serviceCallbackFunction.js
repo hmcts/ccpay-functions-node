@@ -28,11 +28,11 @@ module.exports = async function serviceCallbackFunction() {
         let serviceCallbackUrl;
         let serviceName;
         let correlationId = msg.correlationId === undefined ? randomInt(100000,999999) : msg.correlationId;
-
+        msg.correlationId = correlationId;
         try {
             if (this.validateMessage(msg)) {
                 serviceCallbackUrl = msg.userProperties.serviceCallbackUrl;
-                serviceName = msg.userProperties.serviceName;
+                serviceName = msg.userProperties.serviceName === undefined ? '' : msg.userProperties.serviceName;
                 console.log(correlationId + ': Processing message from service ' + serviceName);
                 const otpPassword = otp({ secret: s2sSecret }).totp();
                 const serviceAuthRequest = {
