@@ -45,7 +45,7 @@
     ]
   },
   "resolutions": {
-    "axios": "1.5.1",
+    "axios": "1.6.0",
     "node-fetch": ">=3.3.2",
     "cookiejar": ">=2.1.4",
     "xml2js": ">=0.6.2",
