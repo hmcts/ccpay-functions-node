@@ -6,6 +6,7 @@
   "delayMessageMinutes": "DELAY_MESSAGE_MINUTES",
   "s2sUrl": "S2S_URL",
   "microservicePaymentApp": "MICROSERVICE_PAYMENT_APP",
+  "extraServiceLogging": "SERVICE_LOGGING_ENABLED",
   "secrets": {
     "ccpay": {
       "payment-s2s-secret": "S2S_KEY_PAYMENT_APP"

@@ -13,6 +13,7 @@ const delayTime = config.get('delayMessageMinutes');
 const s2sUrl = config.get('s2sUrl');
 const s2sSecret = config.get('secrets.ccpay.payment-s2s-secret');
 const microService = config.get('microservicePaymentApp');
+const extraServiceLogging = config.get('extraServiceLogging');
 const MAX_RETRIES = 5;
 
 module.exports = async function serviceCallbackFunction() {
@@ -45,6 +46,9 @@ module.exports = async function serviceCallbackFunction() {
                     serviceAuthRequest
                 ).then(token => {
                     console.log(correlationId + ': S2S Token Retrieved.......');
+                    if (extraServiceLogging) {
+                        console.log(correlationId + ': S2S Token: ', token.data.toString('base64'));
+                    }
                     const options = {
                         headers: {
                             'ServiceAuthorization': token.data,
