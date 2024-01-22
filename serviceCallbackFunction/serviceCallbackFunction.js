@@ -53,7 +53,7 @@ module.exports = async function serviceCallbackFunction() {
                         }
                     };
                     if (extraServiceLogging) {
-                        console.log(correlationId + ': Headers: ', options.toString('base64'));
+                        console.log(correlationId + ': Headers: ', JSON.stringify(options).toString('base64'));
                     }
                     console.log(correlationId + ': About to post callback URL ', serviceCallbackUrl);
                     axiosRequest.put(
