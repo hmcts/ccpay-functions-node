@@ -13,6 +13,7 @@ const delayTime = config.get('delayMessageMinutes');
 const s2sUrl = config.get('s2sUrl');
 const s2sSecret = config.get('secrets.ccpay.payment-s2s-secret');
 const microService = config.get('microservicePaymentApp');
+const extraServiceLogging = config.get('extraServiceLogging');
 const MAX_RETRIES = 5;
 
 module.exports = async function serviceCallbackFunction() {
@@ -51,6 +52,9 @@ module.exports = async function serviceCallbackFunction() {
                             'Content-Type': 'application/json'
                         }
                     };
+                    if (extraServiceLogging) {
+                        console.log(correlationId + ': Headers: ', Buffer.from(JSON.stringify(options)).toString("base64"));
+                    }
                     console.log(correlationId + ': About to post callback URL ', serviceCallbackUrl);
                     axiosRequest.put(
                         serviceCallbackUrl,
