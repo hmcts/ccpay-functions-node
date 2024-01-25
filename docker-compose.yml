@@ -13,4 +13,4 @@ services:
     environment:
       - S2S_URL=http://rpe-service-auth-provider-aat.service.core-compute-aat.internal
       - MICROSERVICE_PAYMENT_APP=payment_app
-
+      - SERVICE_LOGGING_ENABLED=false
