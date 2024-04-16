@@ -1,7 +1,7 @@
 {
-  "servicecallbackTopicName": "servicecallbacktopic",
+  "servicecallbackTopicName": "ccpay-service-callback-topic",
   "servicecallbackBusConnection": "<Service-Bus-Connection>",
-  "servicecallbackSubscriptionName": "defaultServiceCallbackSubscription",
+  "servicecallbackSubscriptionName": "serviceCallbackPremiumSubscription",
   "processMessagesCount": 10,
   "appInsightsInstumentationKey": "124e39c3-6dad-49ef-aede-d2cddac865c2",
   "delayMessageMinutes": 30,
