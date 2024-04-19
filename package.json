@@ -17,7 +17,7 @@
   "dependencies": {
     "@azure/service-bus": "^1.1.7",
     "@hmcts/properties-volume": "^1.0.0",
-    "applicationinsights": "^2.0.0",
+    "applicationinsights": "^3.0.0",
     "axios": "^1.5.1",
     "config": "^3.3.1",
     "node-fetch": ">=3.1.1",
