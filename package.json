@@ -15,7 +15,7 @@
     "sonar-scan": "node_modules/sonar-scanner/bin/sonar-scanner"
   },
   "dependencies": {
-    "@azure/service-bus": "^1.1.7",
+    "@azure/service-bus": "^7.0.0",
     "@hmcts/properties-volume": "^1.0.0",
     "applicationinsights": "^2.0.0",
     "axios": "^1.5.1",
