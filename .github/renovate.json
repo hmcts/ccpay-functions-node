@@ -1,18 +1,26 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>hmcts/.github//renovate/automerge-all", "local>hmcts/.github:renovate-config"],
+  "extends": [
+    "local>hmcts/.github:renovate-config"
+  ],
+  "labels": [
+    "Renovate-dependencies"
+  ],
+  "major": {
+    "dependencyDashboardApproval": true
+  },
   "packageRules": [
     {
       "matchUpdateTypes": [
+        "minor",
         "patch"
       ],
-      "automerge": true,
-      "automergeType": "pr"
-    },
-    {
-      "matchPackageNames": ["copy-webpack-plugin"],
-      "allowedVersions": "<=10",
-      "description": "https://canary.discord.com/channels/226791405589233664/1019534554073157642 and https://github.com/webpack-contrib/copy-webpack-plugin/issues/643 doesn't work even though issue closed"
+      "groupName": "All patch-minor dependencies",
+      "groupSlug": "All-minor-patch",
+      "addLabels": [
+        "Renovate All-minor-patch"
+      ],
+      "automerge": false
     }
   ]
 }
