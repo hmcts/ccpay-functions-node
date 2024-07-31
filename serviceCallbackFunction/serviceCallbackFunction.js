@@ -47,6 +47,7 @@ module.exports = async function serviceCallbackFunction() {
                 ).then(token => {
                     console.log(correlationId + ': S2S Token Retrieved.......');
                     const options = {
+                        maxRedirects: 10,
                         headers: {
                             'ServiceAuthorization': token.data,
                             'Content-Type': 'application/json'
