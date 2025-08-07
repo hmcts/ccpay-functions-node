@@ -85,7 +85,11 @@ module.exports = async function serviceCallbackFunction() {
           retryOrDeadLetter(msg);
         } finally {
             if (!msg.isSettled) {
-                await msg.complete();
+                try {
+                    await msg.complete();
+                } catch (err) {
+                    console.warn(correlationId + ': could not complete message:', err.message);
+                }
             }
         }
 
