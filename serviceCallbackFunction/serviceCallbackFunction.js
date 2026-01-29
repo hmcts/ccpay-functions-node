@@ -45,16 +45,12 @@ module.exports = async function serviceCallbackFunction() {
                     s2sUrl + '/lease',
                     serviceAuthRequest
                 ).then(token => {
-                    console.log(correlationId + ': S2S Token Retrieved.......');
                     const options = {
                         headers: {
                             'ServiceAuthorization': token.data,
                             'Content-Type': 'application/json'
                         }
                     };
-                    if (extraServiceLogging) {
-                        console.log(correlationId + ': Headers: ', Buffer.from(JSON.stringify(options)).toString("base64"));
-                    }
                     console.log(correlationId + ': About to post callback URL ', serviceCallbackUrl);
                     axiosRequest.put(
                         serviceCallbackUrl,
