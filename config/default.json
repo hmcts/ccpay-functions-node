@@ -12,5 +12,15 @@
     "ccpay": {
       "payment-s2s-secret": "Dummy"
     }
-  }
+  },
+  "deadLetterEmailEnabled": true,
+  "deadLetterSmtpHost": "smtp.sendgrid.net",
+  "deadLetterSmtpPort": 587,
+  "deadLetterSmtpSecure": true,
+  "deadLetterSmtpTlsProtocol": "TLSv1.2",
+  "deadLetterSmtpUser": "apikey",
+  "deadLetterSmtpPassword": "",
+  "deadLetterEmailFrom": "smtp.sendgrid.net",
+  "deadLetterEmailTo": "",
+  "deadLetterEmailSubject": "CCPay Callback - Message dead-lettered"
 }

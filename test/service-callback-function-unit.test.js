@@ -2,6 +2,7 @@
 
 const { ServiceBusClient } = require("@azure/service-bus");
 let serviceCallbackFunction = require('../serviceCallbackFunction/serviceCallbackFunction');
+const smtpClient = require('../serviceCallbackFunction/smtpClient');
 
 let axiosRequest = require('axios');
 
@@ -325,6 +326,93 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
          await serviceCallbackFunction();
          expect(axiosRequest.put).to.have.been.calledThrice;
      });
+});
+
+describe("When max retries reached and deadletter succeeds with email notification enabled", function () {
+    let serviceCallbackFunctionWithDeadLetterEmail;
+
+    before(function () {
+        process.env.DEAD_LETTER_EMAIL_ENABLED = 'true';
+        process.env.DEAD_LETTER_SMTP_HOST = 'smtp.example.test';
+        process.env.DEAD_LETTER_SMTP_PORT = '587';
+        process.env.DEAD_LETTER_SMTP_SECURE = 'false';
+        process.env.DEAD_LETTER_SMTP_USER = 'smtp-user';
+        process.env.DEAD_LETTER_SMTP_PASSWORD = 'smtp-password';
+        process.env.DEAD_LETTER_EMAIL_FROM = 'from@example.com';
+        process.env.DEAD_LETTER_EMAIL_TO = 'ops@example.com';
+        process.env.DEAD_LETTER_EMAIL_SUBJECT = 'Dead letter alert';
+
+        delete require.cache[require.resolve('config')];
+        delete require.cache[require.resolve('../serviceCallbackFunction/serviceCallbackFunction')];
+        serviceCallbackFunctionWithDeadLetterEmail = require('../serviceCallbackFunction/serviceCallbackFunction');
+
+        messages = [{
+            correlationId: 1234,
+            body: JSON.stringify({
+                "amount": 3000000,
+            }),
+            userProperties: {
+                retries: 5,
+                serviceName: 'Example',
+                serviceCallbackUrl: 'www.example.com'
+            },
+            complete: sandbox.stub().resolves(),
+            clone: sandbox.stub(),
+            deadLetter: sandbox.stub().resolves()
+        }];
+
+        const error = new Error("S2SToken Failed");
+        sandbox.stub(axiosRequest, 'post').throws(error);
+        sandbox.stub(smtpClient, 'sendMail').resolves({ accepted: ['ops@example.com'] });
+    });
+
+    after(function () {
+        delete process.env.DEAD_LETTER_EMAIL_ENABLED;
+        delete process.env.DEAD_LETTER_SMTP_HOST;
+        delete process.env.DEAD_LETTER_SMTP_PORT;
+        delete process.env.DEAD_LETTER_SMTP_SECURE;
+        delete process.env.DEAD_LETTER_SMTP_USER;
+        delete process.env.DEAD_LETTER_SMTP_PASSWORD;
+        delete process.env.DEAD_LETTER_EMAIL_FROM;
+        delete process.env.DEAD_LETTER_EMAIL_TO;
+        delete process.env.DEAD_LETTER_EMAIL_SUBJECT;
+
+        delete require.cache[require.resolve('config')];
+        delete require.cache[require.resolve('../serviceCallbackFunction/serviceCallbackFunction')];
+        serviceCallbackFunction = require('../serviceCallbackFunction/serviceCallbackFunction');
+    });
+
+    it('sends an email notification once the message is deadlettered', async function () {
+        await serviceCallbackFunctionWithDeadLetterEmail();
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(axiosRequest.post).to.have.been.calledOnce;
+        expect(smtpClient.sendMail).to.have.been.calledWith(
+            {
+                host: 'smtp.example.test',
+                port: 587,
+                secure: false,
+                tls: {
+                    secureProtocol: 'TLSv1.2'
+                },
+                auth: {
+                    user: 'smtp-user',
+                    pass: 'smtp-password'
+                }
+            },
+            {
+                from: 'from@example.com',
+                to: 'ops@example.com',
+                subject: 'Dead letter alert',
+                text: 'A service callback message has been dead-lettered.\n'
+                    + 'correlationId: 1234\n'
+                    + 'retries: 5\n'
+                    + 'serviceName: Example\n'
+                    + 'serviceCallbackUrl: www.example.com\n'
+                    + 'messageBody: {"amount":3000000}'
+            }
+        );
+    });
 });
 
 
