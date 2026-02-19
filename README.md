@@ -32,7 +32,7 @@ Run tests
 
 Debugging tests
 
-Create a new run configuration, choosing `Node.js Mocha` from the drop down. The arguements may need changing. See below example.
+Create a new run configuration, choosing `Node.js Mocha` from the drop down. The arguements may need changing. See below example
 
 ```
          "args": [
