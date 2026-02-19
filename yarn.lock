@@ -1471,7 +1471,7 @@ __metadata:
     "@azure/service-bus": ^1.1.7
     "@hmcts/properties-volume": ^1.0.0
     applicationinsights: ^2.0.0
-    axios: ^1.5.1
+    axios: ^1.13.5
     body-parser: ^1.19.0
     chai: ^4.2.0
     config: ^3.3.1
