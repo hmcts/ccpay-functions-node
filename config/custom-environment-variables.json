@@ -12,5 +12,15 @@
     "ccpay": {
       "payment-s2s-secret": "S2S_KEY_PAYMENT_APP"
     }
-  }
+  },
+  "deadLetterEmailEnabled": "DEAD_LETTER_EMAIL_ENABLED",
+  "deadLetterSmtpHost": "DEAD_LETTER_SMTP_HOST",
+  "deadLetterSmtpPort": "DEAD_LETTER_SMTP_PORT",
+  "deadLetterSmtpSecure": "DEAD_LETTER_SMTP_SECURE",
+  "deadLetterSmtpTlsProtocol": "DEAD_LETTER_SMTP_TLS_PROTOCOL",
+  "deadLetterSmtpUser": "DEAD_LETTER_SMTP_USER",
+  "deadLetterSmtpPassword": "DEAD_LETTER_SMTP_PASSWORD",
+  "deadLetterEmailFrom": "DEAD_LETTER_EMAIL_FROM",
+  "deadLetterEmailTo": "DEAD_LETTER_EMAIL_TO",
+  "deadLetterEmailSubject": "DEAD_LETTER_EMAIL_SUBJECT"
 }

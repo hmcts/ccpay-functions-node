@@ -14,6 +14,17 @@ const s2sUrl = config.get('s2sUrl');
 const s2sSecret = config.get('secrets.ccpay.payment-s2s-secret');
 const microService = config.get('microservicePaymentApp');
 const extraServiceLogging = config.get('extraServiceLogging');
+const deadLetterEmailEnabled = config.get('deadLetterEmailEnabled');
+const deadLetterSmtpHost = config.get('deadLetterSmtpHost');
+const deadLetterSmtpPort = config.get('deadLetterSmtpPort');
+const deadLetterSmtpSecure = config.get('deadLetterSmtpSecure');
+const deadLetterSmtpUser = config.get('deadLetterSmtpUser');
+const deadLetterSmtpPassword = config.get('deadLetterSmtpPassword');
+const deadLetterSmtpTlsProtocol = config.get('deadLetterSmtpTlsProtocol');
+const deadLetterEmailFrom = config.get('deadLetterEmailFrom');
+const deadLetterEmailTo = config.get('deadLetterEmailTo');
+const deadLetterEmailSubject = config.get('deadLetterEmailSubject');
+const smtpClient = require('./smtpClient');
 const MAX_RETRIES = 5;
 
 module.exports = async function serviceCallbackFunction() {
@@ -104,6 +115,7 @@ retryOrDeadLetter = msg => {
         msg.deadLetter()
             .then(() => {
                 console.log(correlationId + ": Dead lettered a message ", JSON.stringify(msg.body));
+                return sendDeadLetterEmail(msg, correlationId);
             })
             .catch(err => {
                 console.log(correlationId + ": Error while dead letter messages ", err)
@@ -113,6 +125,50 @@ retryOrDeadLetter = msg => {
         msg.userProperties.retries++;
         sendMessage(msg.clone(), correlationId);
     }
+}
+
+function sendDeadLetterEmail(msg, correlationId) {
+    if (!deadLetterEmailEnabled) {
+        return Promise.resolve();
+    }
+    if (!deadLetterSmtpHost || !deadLetterSmtpPort || !deadLetterEmailFrom || !deadLetterEmailTo || !deadLetterEmailSubject) {
+        console.log(correlationId + ": Dead letter email enabled but missing configuration.");
+        return Promise.resolve();
+    }
+
+    const smtpConfig = {
+        host: deadLetterSmtpHost,
+        port: parseInt(deadLetterSmtpPort),
+        secure: deadLetterSmtpSecure === true || deadLetterSmtpSecure === 'true',
+        tls: {
+            secureProtocol: deadLetterSmtpTlsProtocol
+        },
+        auth: deadLetterSmtpUser && deadLetterSmtpPassword ? {
+            user: deadLetterSmtpUser,
+            pass: deadLetterSmtpPassword
+        } : undefined
+    };
+    const mailOptions = {
+        from: deadLetterEmailFrom,
+        to: deadLetterEmailTo,
+        subject: deadLetterEmailSubject,
+        text: [
+            'A service callback message has been dead-lettered.',
+            'correlationId: ' + correlationId,
+            'retries: ' + msg.userProperties.retries,
+            'serviceName: ' + (msg.userProperties.serviceName || ''),
+            'serviceCallbackUrl: ' + (msg.userProperties.serviceCallbackUrl || msg.userProperties.servicecallbackurl || ''),
+            'messageBody: ' + (typeof msg.body === 'string' ? msg.body : JSON.stringify(msg.body))
+        ].join('\n')
+    };
+
+    return smtpClient.sendMail(smtpConfig, mailOptions)
+        .then(() => {
+            console.log(correlationId + ": Dead letter email sent.");
+        })
+        .catch(err => {
+            console.log(correlationId + ": Failed to send dead letter email ", err);
+        });
 }
 
 validateMessage = message => {
