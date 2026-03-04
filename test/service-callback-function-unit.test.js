@@ -382,7 +382,7 @@ describe("When max retries reached and deadletter succeeds with email notificati
         serviceCallbackFunction = require('../serviceCallbackFunction/serviceCallbackFunction');
     });
 
-    it('sends an email notification once the message is deadlettered', async function () {
+    it('sends an email notification once the message is dead lettered', async function () {
         await serviceCallbackFunctionWithDeadLetterEmail();
         await new Promise((resolve) => setImmediate(resolve));
 
