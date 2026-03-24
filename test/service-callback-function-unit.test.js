@@ -1,7 +1,7 @@
 'use strict';
 
-const { ServiceBusClient } = require("@azure/service-bus");
-let serviceCallbackFunction = require('../serviceCallbackFunction/serviceCallbackFunction');
+const proxyquire = require('proxyquire');
+let serviceCallbackFunction;
 
 let axiosRequest = require('axios');
 
@@ -9,6 +9,8 @@ const sandbox = require('sinon').createSandbox();
 let chai = require('chai');
 let expect = chai.expect;
 let sinonChai = require('sinon-chai');
+const validServiceCallbackUrl = 'https://payments-aat.service.core-compute-aat.internal/callback';
+const invalidServiceCallbackUrl = 'https://www.example.com/callback';
 
 chai.use(sinonChai);
 
@@ -16,19 +18,28 @@ let messages, loggerStub, response;
 beforeEach(function () {
     console = {
         log: sandbox.stub()
-    }
+    };
 
     const sbClientStub = {
         createSubscriptionClient: sandbox.stub().returnsThis(),
         createReceiver: sandbox.stub().returnsThis(),
-        receiveMessages: sandbox.stub().resolves(messages),
+        receiveMessages: sandbox.stub().callsFake(() => Promise.resolve(messages)),
         createTopicClient: sandbox.stub().returnsThis(),
         scheduleMessage: sandbox.stub().resolves(),
         createSender: sandbox.stub().returnsThis(),
         close: sandbox.stub().returnsThis()
     };
 
-    sandbox.stub(ServiceBusClient, 'createFromConnectionString').callsFake(() => sbClientStub);
+    serviceCallbackFunction = proxyquire('../serviceCallbackFunction/serviceCallbackFunction', {
+        '@azure/service-bus': {
+            ServiceBusClient: {
+                createFromConnectionString: sandbox.stub().returns(sbClientStub)
+            },
+            ReceiveMode: {
+                peekLock: 'peekLock'
+            }
+        }
+    });
 });
 
 describe("When messages are received", function () {
@@ -41,7 +52,7 @@ describe("When messages are received", function () {
             userProperties: {
                 retries: 0,
                 serviceName: 'Example',
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub(),
             clone: sandbox.stub()
@@ -62,7 +73,89 @@ describe("When messages are received", function () {
         expect(console.log).to.have.been.calledWith('1234: S2S Token Retrieved.......');
         expect(console.log).to.have.been.calledWithMatch('1234: About to post callback URL');
         expect(console.log).to.have.been.calledWith('1234: Response: {"amount":3000000}');
-        expect(console.log).to.have.been.calledWith('1234: Message Sent Successfully to www.example.com');
+        expect(console.log).to.have.been.calledWith(`1234: Message Sent Successfully to ${validServiceCallbackUrl}`);
+    });
+});
+
+describe("When callback url does not match allowed pattern", function () {
+    before(function () {
+        messages = [{
+            correlationId: 1234,
+            body: JSON.stringify({
+                "amount": 3000000,
+            }),
+            userProperties: {
+                retries: 0,
+                serviceName: 'Example',
+                serviceCallbackUrl: invalidServiceCallbackUrl
+            },
+            complete: sandbox.stub(),
+            clone: sandbox.stub(),
+            deadLetter: sandbox.stub().resolves()
+        }];
+    });
+
+    it('dead letters message and skips downstream calls', async function () {
+        await serviceCallbackFunction();
+        expect(messages[0].deadLetter).to.have.been.calledOnce;
+        expect(console.log).to.have.been.calledWith(`1234: Invalid service callback url pattern, sending to dead letter: ${invalidServiceCallbackUrl}`);
+    });
+});
+
+describe("When validating callback url allowlist matching", function () {
+    const validUrls = [
+        'https://payments-aat.service.core-compute-aat.internal/callback',
+        'https://payments-prod.service.core-compute-prod.internal/callback',
+        'https://payments-demo.service.core-compute-demo.internal/callback',
+        'https://payments-ithc.service.core-compute-ithc.internal/callback',
+        'https://payments-perftest.service.core-compute-perftest.internal/callback',
+        'https://payments-aat.service.core-compute-aat.internal/callback?foo=bar'
+    ];
+    const invalidUrls = [
+        'https://payments-aat.service.core-compute-prod.internal/callback',
+        'http://127.0.0.1/callback',
+        'https://localhost/callback',
+        'ftp://payments-aat.service.core-compute-aat.internal/callback',
+        'https://www.example.com/callback'
+    ];
+
+    const runWithUrl = async (url) => {
+        messages = [{
+            correlationId: 1234,
+            body: JSON.stringify({
+                "amount": 3000000,
+            }),
+            userProperties: {
+                retries: 0,
+                serviceName: 'Example',
+                serviceCallbackUrl: url
+            },
+            complete: sandbox.stub(),
+            clone: sandbox.stub(),
+            deadLetter: sandbox.stub().resolves()
+        }];
+        sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
+        await serviceCallbackFunction();
+        return messages[0];
+    };
+
+    validUrls.forEach((url) => {
+        it(`accepts and processes valid callback url: ${url}`, async function () {
+            const message = await runWithUrl(url);
+            expect(axiosRequest.post).to.have.been.calledOnce;
+            expect(axiosRequest.put).to.have.been.calledOnce;
+            expect(message.deadLetter).to.not.have.been.called;
+        });
+    });
+
+    invalidUrls.forEach((url) => {
+        it(`rejects and dead-letters invalid callback url: ${url}`, async function () {
+            const message = await runWithUrl(url);
+            expect(message.deadLetter).to.have.been.calledOnce;
+            expect(axiosRequest.post).to.not.have.been.called;
+            expect(axiosRequest.put).to.not.have.been.called;
+        });
     });
 });
 
@@ -147,7 +240,7 @@ describe("When serviceCallbackUrl returns success, s2sToken not received. 5 retr
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
@@ -179,7 +272,7 @@ describe("When serviceCallbackUrl returns success, but sending callback request 
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub(),
             clone: sandbox.stub()
@@ -228,7 +321,7 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
@@ -255,7 +348,7 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
@@ -285,7 +378,7 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
@@ -310,7 +403,7 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
