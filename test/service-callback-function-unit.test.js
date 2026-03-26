@@ -109,14 +109,18 @@ describe("When validating callback url allowlist matching", function () {
         'https://payments-demo.service.core-compute-demo.internal/callback',
         'https://payments-ithc.service.core-compute-ithc.internal/callback',
         'https://payments-perftest.service.core-compute-perftest.internal/callback',
-        'https://payments-aat.service.core-compute-aat.internal/callback?foo=bar'
+        'https://payments-aat.service.core-compute-aat.internal/callback?foo=bar',
+        'https://apply-divorce.service.gov.uk/callback',
+        'https://www.apply-divorce.service.gov.uk/callback',
+        'https://end-civil-partnership.service.gov.uk/callback'
     ];
     const invalidUrls = [
         'https://payments-aat.service.core-compute-prod.internal/callback',
         'http://127.0.0.1/callback',
         'https://localhost/callback',
         'ftp://payments-aat.service.core-compute-aat.internal/callback',
-        'https://www.example.com/callback'
+        'https://www.example.com/callback',
+        'https://probate.service.gov.uk/callback'
     ];
 
     const runWithUrl = async (url) => {
