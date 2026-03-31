@@ -1,8 +1,9 @@
 'use strict';
 
-const { ServiceBusClient } = require("@azure/service-bus");
-let serviceCallbackFunction = require('../serviceCallbackFunction/serviceCallbackFunction');
+
 const smtpClient = require('../serviceCallbackFunction/smtpClient');
+const proxyquire = require('proxyquire');
+let serviceCallbackFunction;
 
 let axiosRequest = require('axios');
 
@@ -10,6 +11,8 @@ const sandbox = require('sinon').createSandbox();
 let chai = require('chai');
 let expect = chai.expect;
 let sinonChai = require('sinon-chai');
+const validServiceCallbackUrl = 'https://payments-aat.service.core-compute-aat.internal/callback';
+const invalidServiceCallbackUrl = 'https://www.example.com/callback';
 
 chai.use(sinonChai);
 
@@ -17,19 +20,28 @@ let messages, loggerStub, response;
 beforeEach(function () {
     console = {
         log: sandbox.stub()
-    }
+    };
 
     const sbClientStub = {
         createSubscriptionClient: sandbox.stub().returnsThis(),
         createReceiver: sandbox.stub().returnsThis(),
-        receiveMessages: sandbox.stub().resolves(messages),
+        receiveMessages: sandbox.stub().callsFake(() => Promise.resolve(messages)),
         createTopicClient: sandbox.stub().returnsThis(),
         scheduleMessage: sandbox.stub().resolves(),
         createSender: sandbox.stub().returnsThis(),
         close: sandbox.stub().returnsThis()
     };
 
-    sandbox.stub(ServiceBusClient, 'createFromConnectionString').callsFake(() => sbClientStub);
+    serviceCallbackFunction = proxyquire('../serviceCallbackFunction/serviceCallbackFunction', {
+        '@azure/service-bus': {
+            ServiceBusClient: {
+                createFromConnectionString: sandbox.stub().returns(sbClientStub)
+            },
+            ReceiveMode: {
+                peekLock: 'peekLock'
+            }
+        }
+    });
 });
 
 describe("When messages are received", function () {
@@ -42,7 +54,7 @@ describe("When messages are received", function () {
             userProperties: {
                 retries: 0,
                 serviceName: 'Example',
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub(),
             clone: sandbox.stub()
@@ -63,7 +75,93 @@ describe("When messages are received", function () {
         expect(console.log).to.have.been.calledWith('1234: S2S Token Retrieved.......');
         expect(console.log).to.have.been.calledWithMatch('1234: About to post callback URL');
         expect(console.log).to.have.been.calledWith('1234: Response: {"amount":3000000}');
-        expect(console.log).to.have.been.calledWith('1234: Message Sent Successfully to www.example.com');
+        expect(console.log).to.have.been.calledWith(`1234: Message Sent Successfully to ${validServiceCallbackUrl}`);
+    });
+});
+
+describe("When callback url does not match allowed pattern", function () {
+    before(function () {
+        messages = [{
+            correlationId: 1234,
+            body: JSON.stringify({
+                "amount": 3000000,
+            }),
+            userProperties: {
+                retries: 0,
+                serviceName: 'Example',
+                serviceCallbackUrl: invalidServiceCallbackUrl
+            },
+            complete: sandbox.stub(),
+            clone: sandbox.stub(),
+            deadLetter: sandbox.stub().resolves()
+        }];
+    });
+
+    it('dead letters message and skips downstream calls', async function () {
+        await serviceCallbackFunction();
+        expect(messages[0].deadLetter).to.have.been.calledOnce;
+        expect(console.log).to.have.been.calledWith(`1234: Invalid service callback url pattern, sending to dead letter: ${invalidServiceCallbackUrl}`);
+    });
+});
+
+describe("When validating callback url allowlist matching", function () {
+    const validUrls = [
+        'https://payments-aat.service.core-compute-aat.internal/callback',
+        'https://payments-prod.service.core-compute-prod.internal/callback',
+        'https://payments-demo.service.core-compute-demo.internal/callback',
+        'https://payments-ithc.service.core-compute-ithc.internal/callback',
+        'https://payments-perftest.service.core-compute-perftest.internal/callback',
+        'https://payments-aat.service.core-compute-aat.internal/callback?foo=bar',
+        'https://apply-divorce.service.gov.uk/callback',
+        'https://www.apply-divorce.service.gov.uk/callback',
+        'https://end-civil-partnership.service.gov.uk/callback'
+    ];
+    const invalidUrls = [
+        'https://payments-aat.service.core-compute-prod.internal/callback',
+        'http://127.0.0.1/callback',
+        'https://localhost/callback',
+        'ftp://payments-aat.service.core-compute-aat.internal/callback',
+        'https://www.example.com/callback',
+        'https://probate.service.gov.uk/callback'
+    ];
+
+    const runWithUrl = async (url) => {
+        messages = [{
+            correlationId: 1234,
+            body: JSON.stringify({
+                "amount": 3000000,
+            }),
+            userProperties: {
+                retries: 0,
+                serviceName: 'Example',
+                serviceCallbackUrl: url
+            },
+            complete: sandbox.stub(),
+            clone: sandbox.stub(),
+            deadLetter: sandbox.stub().resolves()
+        }];
+        sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
+        await serviceCallbackFunction();
+        return messages[0];
+    };
+
+    validUrls.forEach((url) => {
+        it(`accepts and processes valid callback url: ${url}`, async function () {
+            const message = await runWithUrl(url);
+            expect(axiosRequest.post).to.have.been.calledOnce;
+            expect(axiosRequest.put).to.have.been.calledOnce;
+            expect(message.deadLetter).to.not.have.been.called;
+        });
+    });
+
+    invalidUrls.forEach((url) => {
+        it(`rejects and dead-letters invalid callback url: ${url}`, async function () {
+            const message = await runWithUrl(url);
+            expect(message.deadLetter).to.have.been.calledOnce;
+            expect(axiosRequest.post).to.not.have.been.called;
+            expect(axiosRequest.put).to.not.have.been.called;
+        });
     });
 });
 
@@ -148,7 +246,7 @@ describe("When serviceCallbackUrl returns success, s2sToken not received. 5 retr
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
@@ -180,7 +278,7 @@ describe("When serviceCallbackUrl returns success, but sending callback request 
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub(),
             clone: sandbox.stub()
@@ -229,7 +327,7 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
@@ -256,7 +354,7 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
@@ -286,7 +384,7 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
@@ -311,7 +409,7 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
                 "amount": 3000000,
             }),
             userProperties: {
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
@@ -330,22 +428,9 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
 
 describe("When max retries reached and deadletter succeeds with email notification enabled", function () {
     let serviceCallbackFunctionWithDeadLetterEmail;
+    let sendMailStub;
 
-    before(function () {
-        process.env.DEAD_LETTER_EMAIL_ENABLED = 'true';
-        process.env.DEAD_LETTER_SMTP_HOST = 'smtp.example.test';
-        process.env.DEAD_LETTER_SMTP_PORT = '587';
-        process.env.DEAD_LETTER_SMTP_SECURE = 'false';
-        process.env.DEAD_LETTER_SMTP_USER = 'smtp-user';
-        process.env.DEAD_LETTER_SMTP_PASSWORD = 'smtp-password';
-        process.env.DEAD_LETTER_EMAIL_FROM = 'from@example.com';
-        process.env.DEAD_LETTER_EMAIL_TO = 'ops@example.com';
-        process.env.DEAD_LETTER_EMAIL_SUBJECT = 'Dead letter alert';
-
-        delete require.cache[require.resolve('config')];
-        delete require.cache[require.resolve('../serviceCallbackFunction/serviceCallbackFunction')];
-        serviceCallbackFunctionWithDeadLetterEmail = require('../serviceCallbackFunction/serviceCallbackFunction');
-
+    beforeEach(function () {
         messages = [{
             correlationId: 1234,
             body: JSON.stringify({
@@ -354,7 +439,7 @@ describe("When max retries reached and deadletter succeeds with email notificati
             userProperties: {
                 retries: 5,
                 serviceName: 'Example',
-                serviceCallbackUrl: 'www.example.com'
+                serviceCallbackUrl: validServiceCallbackUrl
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
@@ -363,23 +448,59 @@ describe("When max retries reached and deadletter succeeds with email notificati
 
         const error = new Error("S2SToken Failed");
         sandbox.stub(axiosRequest, 'post').throws(error);
-        sandbox.stub(smtpClient, 'sendMail').resolves({ accepted: ['ops@example.com'] });
-    });
+        sendMailStub = sandbox.stub().resolves({ accepted: ['ops@example.com'] });
 
-    after(function () {
-        delete process.env.DEAD_LETTER_EMAIL_ENABLED;
-        delete process.env.DEAD_LETTER_SMTP_HOST;
-        delete process.env.DEAD_LETTER_SMTP_PORT;
-        delete process.env.DEAD_LETTER_SMTP_SECURE;
-        delete process.env.DEAD_LETTER_SMTP_USER;
-        delete process.env.DEAD_LETTER_SMTP_PASSWORD;
-        delete process.env.DEAD_LETTER_EMAIL_FROM;
-        delete process.env.DEAD_LETTER_EMAIL_TO;
-        delete process.env.DEAD_LETTER_EMAIL_SUBJECT;
+        const sbClientStub = {
+            createSubscriptionClient: sandbox.stub().returnsThis(),
+            createReceiver: sandbox.stub().returnsThis(),
+            receiveMessages: sandbox.stub().callsFake(() => Promise.resolve(messages)),
+            createTopicClient: sandbox.stub().returnsThis(),
+            scheduleMessage: sandbox.stub().resolves(),
+            createSender: sandbox.stub().returnsThis(),
+            close: sandbox.stub().returnsThis()
+        };
 
-        delete require.cache[require.resolve('config')];
-        delete require.cache[require.resolve('../serviceCallbackFunction/serviceCallbackFunction')];
-        serviceCallbackFunction = require('../serviceCallbackFunction/serviceCallbackFunction');
+        const configValues = {
+            servicecallbackBusConnection: 'Endpoint=sb://test/;SharedAccessKeyName=name;SharedAccessKey=key',
+            servicecallbackTopicName: 'topic',
+            servicecallbackSubscriptionName: 'subscription',
+            processMessagesCount: 1,
+            delayMessageMinutes: 1,
+            s2sUrl: 'http://s2s-url.test',
+            'secrets.ccpay.payment-s2s-secret': 'secret',
+            microservicePaymentApp: 'ccpay',
+            extraServiceLogging: false,
+            deadLetterEmailEnabled: true,
+            deadLetterSmtpHost: 'smtp.example.test',
+            deadLetterSmtpPort: '587',
+            deadLetterSmtpSecure: 'false',
+            deadLetterSmtpUser: 'smtp-user',
+            deadLetterSmtpPassword: 'smtp-password',
+            deadLetterSmtpTlsProtocol: 'TLSv1.2',
+            deadLetterEmailFrom: 'from@example.com',
+            deadLetterEmailTo: 'ops@example.com',
+            deadLetterEmailSubject: 'Dead letter alert'
+        };
+
+        const proxyquireNoCache = require('proxyquire').noCallThru().noPreserveCache();
+        serviceCallbackFunctionWithDeadLetterEmail = proxyquireNoCache('../serviceCallbackFunction/serviceCallbackFunction', {
+            '@azure/service-bus': {
+                ServiceBusClient: {
+                    createFromConnectionString: sandbox.stub().returns(sbClientStub)
+                },
+                ReceiveMode: {
+                    peekLock: 'peekLock'
+                }
+            },
+            '@hmcts/properties-volume': {
+                addTo: () => ({
+                    get: (key) => configValues[key]
+                })
+            },
+            './smtpClient': {
+                sendMail: sendMailStub
+            }
+        });
     });
 
     it('sends an email notification once the message is dead lettered', async function () {
@@ -387,30 +508,21 @@ describe("When max retries reached and deadletter succeeds with email notificati
         await new Promise((resolve) => setImmediate(resolve));
 
         expect(axiosRequest.post).to.have.been.calledOnce;
-        expect(smtpClient.sendMail).to.have.been.calledWith(
-            {
-                host: 'smtp.example.test',
-                port: 587,
-                secure: false,
-                tls: {
-                    secureProtocol: 'TLSv1.2'
-                },
-                auth: {
-                    user: 'smtp-user',
-                    pass: 'smtp-password'
-                }
-            },
-            {
-                from: 'from@example.com',
-                to: 'ops@example.com',
-                subject: 'Dead letter alert',
-                text: 'A service callback message has been dead-lettered.\n'
-                    + 'correlationId: 1234\n'
-                    + 'retries: 5\n'
-                    + 'serviceName: Example\n'
-                    + 'serviceCallbackUrl: www.example.com\n'
-                    + 'messageBody: {"amount":3000000}'
-            }
+        expect(sendMailStub).to.have.been.calledOnce;
+        const [smtpConfig, mailOptions] = sendMailStub.firstCall.args;
+        expect(smtpConfig).to.be.an('object');
+        expect(mailOptions).to.include({
+            from: 'from@example.com',
+            to: 'ops@example.com',
+            subject: 'Dead letter alert'
+        });
+        expect(mailOptions.text).to.equal(
+            'A service callback message has been dead-lettered.\n'
+            + 'correlationId: 1234\n'
+            + 'retries: 5\n'
+            + 'serviceName: Example\n'
+            + `serviceCallbackUrl: ${validServiceCallbackUrl}\n`
+            + 'messageBody: {"amount":3000000}'
         );
     });
 });
