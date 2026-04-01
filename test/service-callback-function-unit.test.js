@@ -328,7 +328,7 @@ describe("When message security headers are invalid", function () {
         messages = [buildMessage({
             serviceCallbackUrl: validServiceCallbackUrl,
             ...buildSecurityHeaders(body, {
-                'X-Timestamp': new Date(Date.now() - (6 * 60 * 1000)).toISOString()
+                'X-Timestamp': new Date(Date.now() - (31 * 60 * 1000)).toISOString()
             })
         })];
 
