@@ -8,6 +8,11 @@
   "s2sUrl": "http://rpe-service-auth-provider-demo.service.core-compute-demo.internal",
   "microservicePaymentApp": "payment_app",
   "extraServiceLogging": false,
+  "hmac": {
+    "secrets": {
+      "ccpay-message-signing-key": ""
+    }
+  },
   "secrets": {
     "ccpay": {
       "payment-s2s-secret": "Dummy"
