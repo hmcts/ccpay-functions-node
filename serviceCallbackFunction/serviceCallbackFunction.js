@@ -15,6 +15,7 @@ const s2sSecret = config.get('secrets.ccpay.payment-s2s-secret');
 const microService = config.get('microservicePaymentApp');
 const extraServiceLogging = config.get('extraServiceLogging');
 const MAX_RETRIES = 5;
+const SERVICE_CALLBACK_URL_PATTERN = /^https?:\/\/([a-z0-9-]+-(aat|prod|demo|ithc|perftest)\.service\.core-compute-\2\.internal|(www\.)?(apply-divorce|end-civil-partnership)\.service\.gov\.uk)(?:\/.*)?$/;
 
 module.exports = async function serviceCallbackFunction() {
     const sbClient = ServiceBusClient.createFromConnectionString(connectionString);
@@ -33,6 +34,14 @@ module.exports = async function serviceCallbackFunction() {
         try {
             if (this.validateMessage(msg)) {
                 serviceCallbackUrl = msg.userProperties.serviceCallbackUrl;
+                if (!serviceCallbackUrl) {
+                    serviceCallbackUrl = msg.userProperties.servicecallbackurl;
+                }
+                if (!SERVICE_CALLBACK_URL_PATTERN.test(serviceCallbackUrl)) {
+                    console.log(correlationId + ': Invalid service callback url pattern, sending to dead letter: ' + serviceCallbackUrl);
+                    await msg.deadLetter();
+                    continue;
+                }
                 serviceName = msg.userProperties.serviceName === undefined ? '' : msg.userProperties.serviceName;
                 console.log(correlationId + ': Processing message from service ' + serviceName);
                 const otpPassword = otp({ secret: s2sSecret }).totp();
