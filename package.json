@@ -16,11 +16,10 @@
   },
   "dependencies": {
     "@azure/service-bus": "^1.1.7",
-    "@hmcts/properties-volume": "^1.0.0",
-    "applicationinsights": "2.7.0",
+    "@hmcts/properties-volume": "^1.3.2",
+    "applicationinsights": "2.9.8",
     "axios": "^1.13.6",
     "config": "^3.3.1",
-    "node-fetch": ">=3.1.1",
     "otp": "^0.1.3"
   },
   "devDependencies": {
@@ -47,13 +46,14 @@
     ]
   },
   "resolutions": {
-    "node-fetch": ">=3.3.2",
     "cookiejar": ">=2.1.4",
+    "form-data@npm:^3.0.0": "npm:3.0.4",
     "xml2js": ">=0.6.2",
     "json5": ">=2.2.3",
     "tough-cookie": ">=4.1.3",
     "js-yaml": "4.1.1",
     "jws": "4.0.1",
+    "lodash": "4.18.1",
     "semver": "5.7.2"
   },
   "packageManager": "yarn@4.12.0"
