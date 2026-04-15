@@ -299,6 +299,34 @@ describe("When serviceCallbackUrl returns success, but sending callback request 
     });
 });
 
+describe("When callback request promise rejects", function () {
+    before(function () {
+        messages = [{
+            correlationId: 1234,
+            body: JSON.stringify({
+                "amount": 3000000,
+            }),
+            userProperties: {
+                serviceCallbackUrl: validServiceCallbackUrl
+            },
+            complete: sandbox.stub().resolves(),
+            clone: sandbox.stub()
+        }];
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
+        sandbox.stub(axiosRequest, 'put').rejects(new Error("Callback Failed"));
+    });
+
+    it('logs callback fetch error and retries message', async function () {
+        await serviceCallbackFunction();
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(axiosRequest.put).to.have.been.calledOnce;
+        expect(console.log).to.have.been.calledWithMatch('1234: Error in fetching callback request');
+        expect(messages[0].clone).to.have.been.calledOnce;
+        expect(messages[0].userProperties.retries).to.equals(1);
+    });
+});
+
 describe("When serviceCallbackUrl generates unrecoverable error", function () {
     let err = new Error("S2SToken Failed");
     before(function () {
