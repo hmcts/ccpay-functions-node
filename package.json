@@ -47,6 +47,7 @@
   },
   "resolutions": {
     "cookiejar": ">=2.1.4",
+    "follow-redirects@npm:^1.15.11": "npm:1.16.0",
     "form-data@npm:^3.0.0": "npm:3.0.4",
     "xml2js": ">=0.6.2",
     "json5": ">=2.2.3",
