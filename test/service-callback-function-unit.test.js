@@ -1,6 +1,7 @@
 'use strict';
 
 const proxyquire = require('proxyquire');
+const { createHmac } = require('crypto');
 let serviceCallbackFunction;
 
 let axiosRequest = require('axios');
@@ -11,11 +12,54 @@ let expect = chai.expect;
 let sinonChai = require('sinon-chai');
 const validServiceCallbackUrl = 'https://payments-aat.service.core-compute-aat.internal/callback';
 const invalidServiceCallbackUrl = 'https://www.example.com/callback';
+const hmacSecret = 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=';
+const expectedSender = 'ccpay-payment';
+const defaultLabel = 'Service Callback Message';
+const defaultContentType = 'application/json';
 
 chai.use(sinonChai);
 
 let messages, loggerStub, response;
+
+function buildSecurityHeaders(body, overrides = {}) {
+    const timestamp = overrides['X-Timestamp'] || new Date().toISOString();
+    const sender = overrides['X-Sender-Service'] || expectedSender;
+    const label = overrides.label || defaultLabel;
+    const contentType = overrides.contentType || defaultContentType;
+    const payload = [
+        'v1',
+        sender,
+        timestamp,
+        label,
+        contentType,
+        Buffer.from(body || '', 'utf8').toString('base64')
+    ].join('|');
+    const signature = createHmac('sha256', Buffer.from(hmacSecret, 'base64'))
+        .update(payload, 'utf8')
+        .digest('base64');
+
+    return {
+        'X-Message-Signature': signature,
+        'X-Sender-Service': sender,
+        'X-Timestamp': timestamp,
+        ...overrides
+    };
+}
+
+function buildTestMessage({ body, userProperties, ...overrides }) {
+    return {
+        correlationId: 1234,
+        body,
+        label: defaultLabel,
+        contentType: defaultContentType,
+        userProperties,
+        complete: sandbox.stub(),
+        clone: sandbox.stub(),
+        ...overrides
+    };
+}
 beforeEach(function () {
+    process.env.CCPAY_MESSAGE_SIGNING_KEY = hmacSecret;
     console = {
         log: sandbox.stub()
     };
@@ -44,19 +88,18 @@ beforeEach(function () {
 
 describe("When messages are received", function () {
     before(function () {
-        messages = [{
-            correlationId: 1234,
-            body: JSON.stringify({
-                "amount": 3000000,
-            }),
+        const body = JSON.stringify({
+            "amount": 3000000,
+        });
+        messages = [buildTestMessage({
+            body,
             userProperties: {
                 retries: 0,
                 serviceName: 'Example',
-                serviceCallbackUrl: validServiceCallbackUrl
-            },
-            complete: sandbox.stub(),
-            clone: sandbox.stub()
-        }];
+                serviceCallbackUrl: validServiceCallbackUrl,
+                ...buildSecurityHeaders(body)
+            }
+        })];
         sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
         sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
     });
@@ -78,20 +121,19 @@ describe("When messages are received", function () {
 
 describe("When callback url does not match allowed pattern", function () {
     before(function () {
-        messages = [{
-            correlationId: 1234,
-            body: JSON.stringify({
-                "amount": 3000000,
-            }),
+        const body = JSON.stringify({
+            "amount": 3000000,
+        });
+        messages = [buildTestMessage({
+            body,
             userProperties: {
                 retries: 0,
                 serviceName: 'Example',
-                serviceCallbackUrl: invalidServiceCallbackUrl
+                serviceCallbackUrl: invalidServiceCallbackUrl,
+                ...buildSecurityHeaders(body)
             },
-            complete: sandbox.stub(),
-            clone: sandbox.stub(),
             deadLetter: sandbox.stub().resolves()
-        }];
+        })];
     });
 
     it('dead letters message and skips downstream calls', async function () {
@@ -123,20 +165,21 @@ describe("When validating callback url allowlist matching", function () {
     ];
 
     const runWithUrl = async (url) => {
-        messages = [{
-            correlationId: 1234,
+        const body = JSON.stringify({
+            "amount": 3000000,
+        });
+        messages = [buildTestMessage({
             body: JSON.stringify({
                 "amount": 3000000,
             }),
             userProperties: {
                 retries: 0,
                 serviceName: 'Example',
-                serviceCallbackUrl: url
+                serviceCallbackUrl: url,
+                ...buildSecurityHeaders(body)
             },
-            complete: sandbox.stub(),
-            clone: sandbox.stub(),
             deadLetter: sandbox.stub().resolves()
-        }];
+        })];
         sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
         sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
         await serviceCallbackFunction();
@@ -233,22 +276,118 @@ describe("When no userproperties recieved", function () {
     });
 });
 
+describe("When message security headers are invalid", function () {
+    const body = JSON.stringify({
+        "amount": 3000000,
+    });
+
+    const buildMessage = (userProperties) => ({
+        ...buildTestMessage({
+        body,
+        userProperties,
+        deadLetter: sandbox.stub().resolves()
+        })
+    });
+
+    beforeEach(function () {
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
+        sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
+    });
+
+    it('dead letters when required security headers are missing', async function () {
+        messages = [buildMessage({
+            serviceCallbackUrl: validServiceCallbackUrl
+        })];
+
+        await serviceCallbackFunction();
+
+        expect(messages[0].deadLetter).to.have.been.calledOnce;
+        expect(console.log).to.have.been.calledWith('1234: Security validation failed: Missing required security headers');
+        expect(axiosRequest.post).to.not.have.been.called;
+        expect(axiosRequest.put).to.not.have.been.called;
+    });
+
+    it('dead letters when sender is unexpected', async function () {
+        messages = [buildMessage({
+            serviceCallbackUrl: validServiceCallbackUrl,
+            ...buildSecurityHeaders(body, {
+                'X-Sender-Service': 'Unexpected-Service'
+            })
+        })];
+
+        await serviceCallbackFunction();
+
+        expect(messages[0].deadLetter).to.have.been.calledOnce;
+        expect(console.log).to.have.been.calledWith('1234: Security validation failed: Unexpected sender: Unexpected-Service');
+        expect(axiosRequest.post).to.not.have.been.called;
+        expect(axiosRequest.put).to.not.have.been.called;
+    });
+
+    it('processes messages with old timestamps when the signature is valid', async function () {
+        messages = [buildMessage({
+            serviceCallbackUrl: validServiceCallbackUrl,
+            ...buildSecurityHeaders(body, {
+                'X-Timestamp': new Date(Date.now() - (31 * 60 * 1000)).toISOString()
+            })
+        })];
+
+        await serviceCallbackFunction();
+
+        expect(messages[0].deadLetter).to.not.have.been.called;
+        expect(axiosRequest.post).to.have.been.calledOnce;
+        expect(axiosRequest.put).to.have.been.calledOnce;
+    });
+
+    it('dead letters when signature does not match the payload', async function () {
+        messages = [buildMessage({
+            serviceCallbackUrl: validServiceCallbackUrl,
+            ...buildSecurityHeaders(body, {
+                'X-Message-Signature': buildSecurityHeaders('different-body')['X-Message-Signature']
+            })
+        })];
+
+        await serviceCallbackFunction();
+
+        expect(messages[0].deadLetter).to.have.been.calledOnce;
+        expect(console.log).to.have.been.calledWith('1234: Security validation failed: Invalid message signature');
+        expect(axiosRequest.post).to.not.have.been.called;
+        expect(axiosRequest.put).to.not.have.been.called;
+    });
+
+    it('dead letters when signature is not valid base64', async function () {
+        messages = [buildMessage({
+            serviceCallbackUrl: validServiceCallbackUrl,
+            ...buildSecurityHeaders(body, {
+                'X-Message-Signature': 'not-base64'
+            })
+        })];
+
+        await serviceCallbackFunction();
+
+        expect(messages[0].deadLetter).to.have.been.calledOnce;
+        expect(console.log).to.have.been.calledWith('1234: Security validation failed: Invalid message signature');
+        expect(axiosRequest.post).to.not.have.been.called;
+        expect(axiosRequest.put).to.not.have.been.called;
+    });
+});
+
 describe("When serviceCallbackUrl returns success, s2sToken not received. 5 retries expected so 6 attempts in total.", function () {
     let error = new Error("S2SToken Failed");
     before(function () {
         sandbox.stub(axiosRequest, 'post').throws(error);
-        messages = [{
-            correlationId: 1234,
-            body: JSON.stringify({
-                "amount": 3000000,
-            }),
+        const body = JSON.stringify({
+            "amount": 3000000,
+        });
+        messages = [buildTestMessage({
+            body,
             userProperties: {
-                serviceCallbackUrl: validServiceCallbackUrl
+                serviceCallbackUrl: validServiceCallbackUrl,
+                ...buildSecurityHeaders(body)
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
             deadLetter: sandbox.stub().resolves()
-        }];
+        })];
     });
 
     it('if there is an error from S2S Service Token, an error is logged', async function () {
@@ -269,17 +408,18 @@ describe("When serviceCallbackUrl returns success, s2sToken not received. 5 retr
 describe("When serviceCallbackUrl returns success, but sending callback request fails. 5 retries expected so 6 attempts in total.", function () {
     let error = new Error("Callback Failed");
     before(function () {
-        messages = [{
-            correlationId: 1234,
-            body: JSON.stringify({
-                "amount": 3000000,
-            }),
+        const body = JSON.stringify({
+            "amount": 3000000,
+        });
+        messages = [buildTestMessage({
+            body,
             userProperties: {
-                serviceCallbackUrl: validServiceCallbackUrl
+                serviceCallbackUrl: validServiceCallbackUrl,
+                ...buildSecurityHeaders(body)
             },
             complete: sandbox.stub(),
             clone: sandbox.stub()
-        }];
+        })];
         sandbox.stub(axiosRequest, 'put').throws(error);
         sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
     });
@@ -319,17 +459,19 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
     before(function () {
         sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
         sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
-        messages = [{
-            body: JSON.stringify({
-                "amount": 3000000,
-            }),
+        const body = JSON.stringify({
+            "amount": 3000000,
+        });
+        messages = [buildTestMessage({
+            body,
             userProperties: {
-                serviceCallbackUrl: validServiceCallbackUrl
+                serviceCallbackUrl: validServiceCallbackUrl,
+                ...buildSecurityHeaders(body)
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
             deadLetter: sandbox.stub().rejects()
-        }];
+        })];
     });
 
     it('if there is an error from serviceCallbackUrl, an error is logged', async function () {
@@ -345,18 +487,19 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
     before(function () {
         sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
         sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
-        messages = [{
-            correlationId: 1234,
-            body: JSON.stringify({
-                "amount": 3000000,
-            }),
+        const body = JSON.stringify({
+            "amount": 3000000,
+        });
+        messages = [buildTestMessage({
+            body,
             userProperties: {
-                serviceCallbackUrl: validServiceCallbackUrl
+                serviceCallbackUrl: validServiceCallbackUrl,
+                ...buildSecurityHeaders(body)
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
             deadLetter: sandbox.stub().rejects()
-        }];
+        })];
     });
 
     it('if there is an error from serviceCallbackUrl for 5 times', async function () {
@@ -375,18 +518,19 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
     before(function () {
         sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
         sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
-        messages = [{
-            correlationId: 1234,
-            body: JSON.stringify({
-                "amount": 3000000,
-            }),
+        const body = JSON.stringify({
+            "amount": 3000000,
+        });
+        messages = [buildTestMessage({
+            body,
             userProperties: {
-                serviceCallbackUrl: validServiceCallbackUrl
+                serviceCallbackUrl: validServiceCallbackUrl,
+                ...buildSecurityHeaders(body)
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
             deadLetter: sandbox.stub().resolves()
-        }];
+        })];
     });
 
     it('if there is an error from serviceCallbackUrl, an error is logged', async function () {
@@ -400,18 +544,19 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
     before(function () {
         sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
         sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
-        messages = [{
-            correlationId: 1234,
-            body: JSON.stringify({
-                "amount": 3000000,
-            }),
+        const body = JSON.stringify({
+            "amount": 3000000,
+        });
+        messages = [buildTestMessage({
+            body,
             userProperties: {
-                serviceCallbackUrl: validServiceCallbackUrl
+                serviceCallbackUrl: validServiceCallbackUrl,
+                ...buildSecurityHeaders(body)
             },
             complete: sandbox.stub().resolves(),
             clone: sandbox.stub(),
             deadLetter: sandbox.stub().resolves()
-        }];
+        })];
     });
 
 
@@ -425,5 +570,6 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
 
 
 afterEach(function () {
+    delete process.env.CCPAY_MESSAGE_SIGNING_KEY;
     sandbox.restore();
 });

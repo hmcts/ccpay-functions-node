@@ -2,7 +2,7 @@ const axiosRequest = require('axios');
 const { ServiceBusClient, ReceiveMode } = require("@azure/service-bus");
 const config = require('@hmcts/properties-volume').addTo(require('config'));
 const otp = require('otp');
-const { randomInt } = require('crypto');
+const { createHmac, randomInt, timingSafeEqual } = require('crypto');
 
 const connectionString = config.get('servicecallbackBusConnection');
 const topicName = config.get('servicecallbackTopicName');
@@ -12,9 +12,14 @@ const delayTime = config.get('delayMessageMinutes');
 
 const s2sUrl = config.get('s2sUrl');
 const s2sSecret = config.get('secrets.ccpay.payment-s2s-secret');
+const ccpayMessageSigningKey = config.get('hmac.secrets.ccpay-message-signing-key');
 const microService = config.get('microservicePaymentApp');
 const extraServiceLogging = config.get('extraServiceLogging');
 const MAX_RETRIES = 5;
+const HEADER_SIGNATURE = 'X-Message-Signature';
+const HEADER_SENDER = 'X-Sender-Service';
+const HEADER_TIMESTAMP = 'X-Timestamp';
+const EXPECTED_INBOUND_SENDER = 'ccpay-payment';
 const SERVICE_CALLBACK_URL_PATTERN = /^https?:\/\/([a-z0-9-]+-(aat|prod|demo|ithc|perftest)\.service\.core-compute-\2\.internal|(www\.)?(apply-divorce|end-civil-partnership)\.service\.gov\.uk)(?:\/.*)?$/;
 
 module.exports = async function serviceCallbackFunction() {
@@ -140,8 +145,92 @@ validateMessage = message => {
             return false;
         }
     }
+    try {
+        validateMessageSecurity(message);
+    } catch (err) {
+        console.log(correlationId + ': Security validation failed: ' + err.message);
+        return false;
+    }
     console.log(correlationId + ': Received Callback Message is Valid!!!');
     return true;
+}
+
+function validateMessageSecurity(message) {
+    const userProperties = message.userProperties || {};
+    const signature = asString(userProperties[HEADER_SIGNATURE]);
+    const sender = asString(userProperties[HEADER_SENDER]);
+    const timestamp = asString(userProperties[HEADER_TIMESTAMP]);
+
+    if (!signature || !sender || !timestamp) {
+        throw new Error('Missing required security headers');
+    }
+
+    if (sender !== EXPECTED_INBOUND_SENDER) {
+        throw new Error('Unexpected sender: ' + sender);
+    }
+
+    const payloadToSign = buildPayloadToSign(message, timestamp, sender);
+    const expectedSignature = hmacSha256Base64(payloadToSign, ccpayMessageSigningKey);
+    const signatureBuffer = Buffer.from(signature, 'utf8');
+    const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+
+    if (signatureBuffer.length !== expectedBuffer.length
+        || !timingSafeEqual(signatureBuffer, expectedBuffer)) {
+        throw new Error('Invalid message signature');
+    }
+}
+
+function buildPayloadToSign(message, timestamp, sender) {
+    return [
+        'v1',
+        sender,
+        timestamp,
+        asString(message.label),
+        asString(message.contentType),
+        Buffer.from(getBodyAsString(message.body), 'utf8').toString('base64')
+    ].join('|');
+}
+
+function getBodyAsString(body) {
+    if (body == null) {
+        return '';
+    }
+
+    if (typeof body === 'string') {
+        return body;
+    }
+
+    return JSON.stringify(body);
+}
+
+function asString(value) {
+    return value == null ? null : value.toString();
+}
+
+function hmacSha256Base64(payload, base64Secret) {
+    try {
+        if (typeof base64Secret !== 'string' || base64Secret.trim().length === 0) {
+            throw new Error('Missing secret');
+        }
+        const secretBytes = decodeBase64Secret(base64Secret);
+        return createHmac('sha256', secretBytes)
+            .update(payload, 'utf8')
+            .digest('base64');
+    } catch (err) {
+        throw new Error('Unable to calculate HMAC-SHA256');
+    }
+}
+
+function decodeBase64Secret(value) {
+    if (typeof value !== 'string' || value.length === 0 || !isValidBase64(value)) {
+        throw new Error('Invalid Base64 secret');
+    }
+
+    return Buffer.from(value, 'base64');
+}
+
+function isValidBase64(value) {
+    return /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value);
 }
 
 

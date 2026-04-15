@@ -8,6 +8,11 @@
   "s2sUrl": "S2S_URL",
   "microservicePaymentApp": "MICROSERVICE_PAYMENT_APP",
   "extraServiceLogging": "SERVICE_LOGGING_ENABLED",
+  "hmac": {
+    "secrets": {
+      "ccpay-message-signing-key": "CCPAY_MESSAGE_SIGNING_KEY"
+    }
+  },
   "secrets": {
     "ccpay": {
       "payment-s2s-secret": "S2S_KEY_PAYMENT_APP"

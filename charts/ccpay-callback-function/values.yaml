@@ -1,5 +1,5 @@
 function:
-  image: 'hmctspublic.azurecr.io/ccpay/callback-function:latest'
+  image: 'hmctsprod.azurecr.io/ccpay/callback-function:latest'
   memoryRequests: 64Mi
   cpuRequests: 100m
   memoryLimits: 500Mi
@@ -16,6 +16,8 @@ function:
     "ccpay":
       secrets:
         - payment-s2s-secret
+        - name: ccpay-message-signing-key
+          alias: CCPAY_MESSAGE_SIGNING_KEY
   environment:
     S2S_URL: http://rpe-service-auth-provider-{{ .Values.global.environment }}.service.core-compute-{{ .Values.global.environment }}.internal
     MICROSERVICE_PAYMENT_APP: "payment_app"
