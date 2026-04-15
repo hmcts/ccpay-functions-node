@@ -554,6 +554,168 @@ describe("When max retries reached and deadletter succeeds with email notificati
     });
 });
 
+describe("When max retries reached and deadletter succeeds with email notification disabled", function () {
+    let serviceCallbackFunctionWithDeadLetterEmailDisabled;
+    let sendMailStub;
+
+    beforeEach(function () {
+        messages = [{
+            correlationId: 1234,
+            body: JSON.stringify({
+                "amount": 3000000,
+            }),
+            userProperties: {
+                retries: 5,
+                serviceName: 'Example',
+                serviceCallbackUrl: validServiceCallbackUrl
+            },
+            complete: sandbox.stub().resolves(),
+            clone: sandbox.stub(),
+            deadLetter: sandbox.stub().resolves()
+        }];
+
+        const error = new Error("S2SToken Failed");
+        sandbox.stub(axiosRequest, 'post').throws(error);
+        sendMailStub = sandbox.stub().resolves({ accepted: ['ops@example.com'] });
+
+        const sbClientStub = {
+            createSubscriptionClient: sandbox.stub().returnsThis(),
+            createReceiver: sandbox.stub().returnsThis(),
+            receiveMessages: sandbox.stub().callsFake(() => Promise.resolve(messages)),
+            createTopicClient: sandbox.stub().returnsThis(),
+            scheduleMessage: sandbox.stub().resolves(),
+            createSender: sandbox.stub().returnsThis(),
+            close: sandbox.stub().returnsThis()
+        };
+
+        const configValues = {
+            servicecallbackBusConnection: 'Endpoint=sb://test/;SharedAccessKeyName=name;SharedAccessKey=key',
+            servicecallbackTopicName: 'topic',
+            servicecallbackSubscriptionName: 'subscription',
+            processMessagesCount: 1,
+            delayMessageMinutes: 1,
+            s2sUrl: 'http://s2s-url.test',
+            'secrets.ccpay.payment-s2s-secret': 'secret',
+            microservicePaymentApp: 'ccpay',
+            extraServiceLogging: false,
+            deadLetterEmailEnabled: false
+        };
+
+        const proxyquireNoCache = require('proxyquire').noCallThru().noPreserveCache();
+        serviceCallbackFunctionWithDeadLetterEmailDisabled = proxyquireNoCache('../serviceCallbackFunction/serviceCallbackFunction', {
+            '@azure/service-bus': {
+                ServiceBusClient: {
+                    createFromConnectionString: sandbox.stub().returns(sbClientStub)
+                },
+                ReceiveMode: {
+                    peekLock: 'peekLock'
+                }
+            },
+            '@hmcts/properties-volume': {
+                addTo: () => ({
+                    get: (key) => configValues[key]
+                })
+            },
+            './smtpClient': {
+                sendMail: sendMailStub
+            }
+        });
+    });
+
+    it('does not send an email notification when dead letter email is disabled', async function () {
+        await serviceCallbackFunctionWithDeadLetterEmailDisabled();
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(sendMailStub).to.not.have.been.called;
+    });
+});
+
+describe("When max retries reached and deadletter succeeds with incomplete email configuration", function () {
+    let serviceCallbackFunctionWithMissingDeadLetterConfig;
+    let sendMailStub;
+
+    beforeEach(function () {
+        messages = [{
+            correlationId: 1234,
+            body: JSON.stringify({
+                "amount": 3000000,
+            }),
+            userProperties: {
+                retries: 5,
+                serviceName: 'Example',
+                serviceCallbackUrl: validServiceCallbackUrl
+            },
+            complete: sandbox.stub().resolves(),
+            clone: sandbox.stub(),
+            deadLetter: sandbox.stub().resolves()
+        }];
+
+        const error = new Error("S2SToken Failed");
+        sandbox.stub(axiosRequest, 'post').throws(error);
+        sendMailStub = sandbox.stub().resolves({ accepted: ['ops@example.com'] });
+
+        const sbClientStub = {
+            createSubscriptionClient: sandbox.stub().returnsThis(),
+            createReceiver: sandbox.stub().returnsThis(),
+            receiveMessages: sandbox.stub().callsFake(() => Promise.resolve(messages)),
+            createTopicClient: sandbox.stub().returnsThis(),
+            scheduleMessage: sandbox.stub().resolves(),
+            createSender: sandbox.stub().returnsThis(),
+            close: sandbox.stub().returnsThis()
+        };
+
+        const configValues = {
+            servicecallbackBusConnection: 'Endpoint=sb://test/;SharedAccessKeyName=name;SharedAccessKey=key',
+            servicecallbackTopicName: 'topic',
+            servicecallbackSubscriptionName: 'subscription',
+            processMessagesCount: 1,
+            delayMessageMinutes: 1,
+            s2sUrl: 'http://s2s-url.test',
+            'secrets.ccpay.payment-s2s-secret': 'secret',
+            microservicePaymentApp: 'ccpay',
+            extraServiceLogging: false,
+            deadLetterEmailEnabled: true,
+            deadLetterSmtpHost: '',
+            deadLetterSmtpPort: '587',
+            deadLetterSmtpSecure: 'false',
+            deadLetterSmtpUser: 'smtp-user',
+            deadLetterSmtpPassword: 'smtp-password',
+            deadLetterSmtpTlsProtocol: 'TLSv1.2',
+            deadLetterEmailFrom: 'from@example.com',
+            deadLetterEmailTo: 'ops@example.com',
+            deadLetterEmailSubject: 'Dead letter alert'
+        };
+
+        const proxyquireNoCache = require('proxyquire').noCallThru().noPreserveCache();
+        serviceCallbackFunctionWithMissingDeadLetterConfig = proxyquireNoCache('../serviceCallbackFunction/serviceCallbackFunction', {
+            '@azure/service-bus': {
+                ServiceBusClient: {
+                    createFromConnectionString: sandbox.stub().returns(sbClientStub)
+                },
+                ReceiveMode: {
+                    peekLock: 'peekLock'
+                }
+            },
+            '@hmcts/properties-volume': {
+                addTo: () => ({
+                    get: (key) => configValues[key]
+                })
+            },
+            './smtpClient': {
+                sendMail: sendMailStub
+            }
+        });
+    });
+
+    it('does not send an email notification when email configuration is incomplete', async function () {
+        await serviceCallbackFunctionWithMissingDeadLetterConfig();
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(sendMailStub).to.not.have.been.called;
+        expect(console.log).to.have.been.calledWith('1234: Dead letter email enabled but missing configuration.');
+    });
+});
+
 
 afterEach(function () {
     sandbox.restore();
