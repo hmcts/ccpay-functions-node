@@ -37,7 +37,17 @@ describe('smtpClient.sendMail', function () {
 
         const result = await smtpClient.sendMail(smtpConfig, mailOptions);
 
-        expect(createTransportStub).to.have.been.calledOnceWithExactly(smtpConfig);
+        expect(createTransportStub).to.have.been.calledOnceWithExactly({
+            host: 'smtp.example.test',
+            port: 587,
+            secure: false,
+            requireTLS: true,
+            ignoreTLS: false,
+            tls: {
+                minVersion: 'TLSv1.2',
+                rejectUnauthorized: true
+            }
+        });
         expect(sendMailStub).to.have.been.calledOnceWithExactly(mailOptions);
         expect(result).to.equal(sendMailResult);
     });
