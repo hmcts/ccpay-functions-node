@@ -173,14 +173,10 @@ function validateMessageSecurity(message) {
         throw new Error('Unexpected sender: ' + sender);
     }
 
-    if (isExpired(timestamp)) {
-        throw new Error('Message expired');
-    }
-
     const payloadToSign = buildPayloadToSign(message, timestamp, sender);
     const expectedSignature = hmacSha256Base64(payloadToSign, ccpayMessageSigningKey);
-    const signatureBuffer = decodeBase64(signature, 'signature');
-    const expectedBuffer = decodeBase64(expectedSignature, 'expected signature');
+    const signatureBuffer = Buffer.from(signature, 'utf8');
+    const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
 
     if (signatureBuffer.length !== expectedBuffer.length
         || !timingSafeEqual(signatureBuffer, expectedBuffer)) {
@@ -211,16 +207,6 @@ function getBodyAsString(body) {
     return JSON.stringify(body);
 }
 
-function isExpired(timestamp) {
-    const messageTime = Date.parse(timestamp);
-    if (Number.isNaN(messageTime)) {
-        throw new Error('Invalid timestamp');
-    }
-
-    const now = Date.now();
-    return messageTime < now - (30 * 60 * 1000) || messageTime > now + (30 * 1000);
-}
-
 function asString(value) {
     return value == null ? null : value.toString();
 }
@@ -230,7 +216,7 @@ function hmacSha256Base64(payload, base64Secret) {
         if (typeof base64Secret !== 'string' || base64Secret.trim().length === 0) {
             throw new Error('Missing secret');
         }
-        const secretBytes = decodeBase64(base64Secret, 'secret');
+        const secretBytes = decodeBase64Secret(base64Secret);
         return createHmac('sha256', secretBytes)
             .update(payload, 'utf8')
             .digest('base64');
@@ -239,9 +225,9 @@ function hmacSha256Base64(payload, base64Secret) {
     }
 }
 
-function decodeBase64(value, description) {
+function decodeBase64Secret(value) {
     if (typeof value !== 'string' || value.length === 0 || !isValidBase64(value)) {
-        throw new Error('Invalid Base64 ' + description);
+        throw new Error('Invalid Base64 secret');
     }
 
     return Buffer.from(value, 'base64');

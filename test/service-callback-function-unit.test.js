@@ -324,7 +324,7 @@ describe("When message security headers are invalid", function () {
         expect(axiosRequest.put).to.not.have.been.called;
     });
 
-    it('dead letters when timestamp is expired', async function () {
+    it('processes messages with old timestamps when the signature is valid', async function () {
         messages = [buildMessage({
             serviceCallbackUrl: validServiceCallbackUrl,
             ...buildSecurityHeaders(body, {
@@ -334,10 +334,9 @@ describe("When message security headers are invalid", function () {
 
         await serviceCallbackFunction();
 
-        expect(messages[0].deadLetter).to.have.been.calledOnce;
-        expect(console.log).to.have.been.calledWith('1234: Security validation failed: Message expired');
-        expect(axiosRequest.post).to.not.have.been.called;
-        expect(axiosRequest.put).to.not.have.been.called;
+        expect(messages[0].deadLetter).to.not.have.been.called;
+        expect(axiosRequest.post).to.have.been.calledOnce;
+        expect(axiosRequest.put).to.have.been.calledOnce;
     });
 
     it('dead letters when signature does not match the payload', async function () {
@@ -367,7 +366,7 @@ describe("When message security headers are invalid", function () {
         await serviceCallbackFunction();
 
         expect(messages[0].deadLetter).to.have.been.calledOnce;
-        expect(console.log).to.have.been.calledWith('1234: Security validation failed: Invalid Base64 signature');
+        expect(console.log).to.have.been.calledWith('1234: Security validation failed: Invalid message signature');
         expect(axiosRequest.post).to.not.have.been.called;
         expect(axiosRequest.put).to.not.have.been.called;
     });

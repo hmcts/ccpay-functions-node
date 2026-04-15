@@ -16,6 +16,8 @@ function:
     "ccpay":
       secrets:
         - payment-s2s-secret
+        - name: ccpay-message-signing-key
+          alias: CCPAY_MESSAGE_SIGNING_KEY
   environment:
     S2S_URL: http://rpe-service-auth-provider-{{ .Values.global.environment }}.service.core-compute-{{ .Values.global.environment }}.internal
     MICROSERVICE_PAYMENT_APP: "payment_app"
