@@ -143,7 +143,7 @@ function sendDeadLetterEmail(msg, correlationId) {
 
     const smtpConfig = {
         host: deadLetterSmtpHost,
-        port: parseInt(deadLetterSmtpPort),
+        port: Number.parseInt(deadLetterSmtpPort),
         secure: deadLetterSmtpSecure === true || deadLetterSmtpSecure === 'true',
         tls: {
             secureProtocol: deadLetterSmtpTlsProtocol
