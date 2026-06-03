@@ -21,10 +21,13 @@ Set below environment variables with corresponding servicebus you want to connec
 - SERVICE_CALLBACK_SUBSCRIPTION
 - SERVICE_CALLBACK_URL_PATTERN
 
-`SERVICE_CALLBACK_URL_PATTERN` can be overridden externally when preview callback URLs need to be allowed. For example, the following value supports callback URLs such as `http://pr-3744.preview.platform.hmcts.net/payment/gor-payment-request-update`, where the numeric `pr-####` segment can be any number:
+`SERVICE_CALLBACK_URL_PATTERN` can be overridden externally when additional callback URLs need to be allowed. The pattern below supports:
+
+- internal callback URLs such as `http://prl-cos-demo.service.core-compute-demo.internal/service-request-update`
+- preview callback URLs such as `https://probate-back-office-pr-3744.preview.platform.hmcts.net/payment/gor-payment-request-update`, where the numeric `pr-####` segment can be any number
 
 ```bash
-SERVICE_CALLBACK_URL_PATTERN='^(?:https?:\/\/([a-z0-9-]+-(aat|prod|demo|ithc|perftest)\.service\.core-compute-\2\.internal|(www\.)?(apply-divorce|end-civil-partnership)\.service\.gov\.uk)(?:\/.*)?|http:\/\/pr-\d+\.preview\.platform\.hmcts\.net\/payment\/gor-payment-request-update)$'
+SERVICE_CALLBACK_URL_PATTERN='^(?:https?:\/\/(?:[a-z0-9-]+-(aat|prod|demo|ithc|perftest)\.service\.core-compute-\1\.internal|(www\.)?(apply-divorce|end-civil-partnership)\.service\.gov\.uk)(?:\/.*)?|http:\/\/pr-\d+\.preview\.platform\.hmcts\.net(?:\/.*)?)$'
 ```
 
 Start

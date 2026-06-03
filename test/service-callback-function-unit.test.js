@@ -102,25 +102,9 @@ describe("When callback url does not match allowed pattern", function () {
 });
 
 describe("When callback url pattern is overridden via config", function () {
-    it('uses the configured regex instead of the default allowlist', async function () {
-        messages = [{
-            correlationId: 1234,
-            body: JSON.stringify({
-                "amount": 3000000,
-            }),
-            userProperties: {
-                retries: 0,
-                serviceName: 'Example',
-                serviceCallbackUrl: invalidServiceCallbackUrl
-            },
-            complete: sandbox.stub(),
-            clone: sandbox.stub(),
-            deadLetter: sandbox.stub().resolves()
-        }];
+    const externalServiceCallbackUrlPattern = '^https?://(?:[a-z0-9-]+-(aat|prod|demo|ithc|perftest)\\.service\\.core-compute-\\1\\.internal|(?:www\\.)?(?:apply-divorce|end-civil-partnership)\\.service\\.gov\\.uk|(?:[a-z0-9-]+-)?pr-\\d+\\.preview\\.platform\\.hmcts\\.net)(?:/.*)?$';
 
-        sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
-        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
-
+    const createOverriddenServiceCallbackFunction = (serviceCallbackUrlPattern) => {
         const sbClientStub = {
             createSubscriptionClient: sandbox.stub().returnsThis(),
             createReceiver: sandbox.stub().returnsThis(),
@@ -141,27 +125,57 @@ describe("When callback url pattern is overridden via config", function () {
             'secrets.ccpay.payment-s2s-secret': 'Dummy',
             microservicePaymentApp: 'payment_app',
             extraServiceLogging: false,
-            serviceCallbackUrlPattern: '^https://www\\.example\\.com(?:/.*)?$'
+            serviceCallbackUrlPattern
         };
 
         const configStub = {
             get: sandbox.stub().callsFake((key) => configValues[key])
         };
 
-        const serviceCallbackFunctionWithConfig = proxyquire.noPreserveCache()('../serviceCallbackFunction/serviceCallbackFunction', {
-            '@azure/service-bus': {
-                ServiceBusClient: {
-                    createFromConnectionString: sandbox.stub().returns(sbClientStub)
+        return {
+            configStub,
+            serviceCallbackFunctionWithConfig: proxyquire.noPreserveCache()('../serviceCallbackFunction/serviceCallbackFunction', {
+                '@azure/service-bus': {
+                    ServiceBusClient: {
+                        createFromConnectionString: sandbox.stub().returns(sbClientStub)
+                    },
+                    ReceiveMode: {
+                        peekLock: 'peekLock'
+                    }
                 },
-                ReceiveMode: {
-                    peekLock: 'peekLock'
-                }
-            },
-            '@hmcts/properties-volume': {
-                addTo: sandbox.stub().callsFake((loadedConfig) => loadedConfig)
-            },
-            config: configStub
-        });
+                '@hmcts/properties-volume': {
+                    addTo: sandbox.stub().callsFake((loadedConfig) => loadedConfig)
+                },
+                config: configStub
+            })
+        };
+    };
+
+    const createMessage = (url) => [{
+        correlationId: 1234,
+        body: JSON.stringify({
+            "amount": 3000000,
+        }),
+        userProperties: {
+            retries: 0,
+            serviceName: 'Example',
+            serviceCallbackUrl: url
+        },
+        complete: sandbox.stub(),
+        clone: sandbox.stub(),
+        deadLetter: sandbox.stub().resolves()
+    }];
+
+    it('uses the configured regex instead of the default allowlist', async function () {
+        messages = createMessage(invalidServiceCallbackUrl);
+
+        sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
+
+        const {
+            configStub,
+            serviceCallbackFunctionWithConfig
+        } = createOverriddenServiceCallbackFunction('^https://www\\.example\\.com(?:/.*)?$');
 
         await serviceCallbackFunctionWithConfig();
 
@@ -169,6 +183,30 @@ describe("When callback url pattern is overridden via config", function () {
         expect(axiosRequest.post).to.have.been.calledOnce;
         expect(axiosRequest.put).to.have.been.calledOnce;
         expect(messages[0].deadLetter).to.not.have.been.called;
+    });
+
+    [
+        'http://prl-cos-demo.service.core-compute-demo.internal/service-request-update',
+        'https://probate-back-office-pr-3744.preview.platform.hmcts.net/payment/gor-payment-request-update'
+    ].forEach((url) => {
+        it(`accepts callback url from externally overridden pattern: ${url}`, async function () {
+            messages = createMessage(url);
+
+            sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
+            sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
+
+            const {
+                configStub,
+                serviceCallbackFunctionWithConfig
+            } = createOverriddenServiceCallbackFunction(externalServiceCallbackUrlPattern);
+
+            await serviceCallbackFunctionWithConfig();
+
+            expect(configStub.get).to.have.been.calledWith('serviceCallbackUrlPattern');
+            expect(axiosRequest.post).to.have.been.calledOnce;
+            expect(axiosRequest.put).to.have.been.calledOnce;
+            expect(messages[0].deadLetter).to.not.have.been.called;
+        });
     });
 });
 
@@ -182,8 +220,8 @@ describe("When validating callback url allowlist matching", function () {
         'https://payments-aat.service.core-compute-aat.internal/callback?foo=bar',
         'https://apply-divorce.service.gov.uk/callback',
         'https://www.apply-divorce.service.gov.uk/callback',
-        'https://end-civil-partnership.service.gov.uk/callback'
-    ];
+        'https://end-civil-partnership.service.gov.uk/callback',
+        'http://prl-cos-demo.service.core-compute-demo.internal/service-request-update'    ];
     const invalidUrls = [
         'https://payments-aat.service.core-compute-prod.internal/callback',
         'http://127.0.0.1/callback',
