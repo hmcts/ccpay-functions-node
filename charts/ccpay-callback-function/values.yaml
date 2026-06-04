@@ -5,6 +5,10 @@ function:
   memoryLimits: 500Mi
   cpuLimits: 300m
   scaleType: Job
+  # Add this at the root level of your component file to override the chart-function base values:
+  rollout:
+    strategy: gradual
+    propagationPolicy: foreground
   triggers:
     - type: azure-servicebus
       topicName: "ccpay-service-callback-topic"
