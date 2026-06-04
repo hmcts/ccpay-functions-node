@@ -102,7 +102,7 @@ describe("When callback url does not match allowed pattern", function () {
 });
 
 describe("When callback url pattern is overridden via config", function () {
-    const externalServiceCallbackUrlPattern = '^https?://(?:[a-z0-9-]+-(aat|prod|demo|ithc|perftest)\\.service\\.core-compute-\\1\\.internal|(?:www\\.)?(?:apply-divorce|end-civil-partnership)\\.service\\.gov\\.uk|(?:[a-z0-9-]+-)?pr-\\d+\\.preview\\.platform\\.hmcts\\.net)(?:/.*)?$';
+    const externalServiceCallbackUrlPattern = '^https?://(?:[a-z0-9-]+-(aat|prod|demo|ithc|perftest)\\.service\\.core-compute-\\1\\.internal|(?:www\\.)?(?:apply-divorce|end-civil-partnership)\\.service\\.gov\\.uk|[a-z0-9-]+\\.preview\\.platform\\.hmcts\\.net)(?:/.*)?$';
 
     const createOverriddenServiceCallbackFunction = (serviceCallbackUrlPattern) => {
         const sbClientStub = {
@@ -187,7 +187,8 @@ describe("When callback url pattern is overridden via config", function () {
 
     [
         'http://prl-cos-demo.service.core-compute-demo.internal/service-request-update',
-        'https://probate-back-office-pr-3744.preview.platform.hmcts.net/payment/gor-payment-request-update'
+        'https://probate-back-office-pr-3744.preview.platform.hmcts.net/payment/gor-payment-request-update',
+        'https://civil-citizen-ui-pr-7720-civil-service.preview.platform.hmcts.net/service-request-update-claim-issued'
     ].forEach((url) => {
         it(`accepts callback url from externally overridden pattern: ${url}`, async function () {
             messages = createMessage(url);
