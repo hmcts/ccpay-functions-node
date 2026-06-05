@@ -26,6 +26,3 @@ function:
 
 servicebus:
   enabled: false
-
-failedJobsHistoryLimit: 5
-successfulJobsHistoryLimit: 5
