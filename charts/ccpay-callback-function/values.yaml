@@ -5,6 +5,8 @@ function:
   memoryLimits: 500Mi
   cpuLimits: 300m
   scaleType: Job
+  failedJobsHistoryLimit: 5
+  successfulJobsHistoryLimit: 5
   triggers:
     - type: azure-servicebus
       topicName: "ccpay-service-callback-topic"
