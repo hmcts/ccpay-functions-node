@@ -5,8 +5,6 @@ function:
   memoryLimits: 500Mi
   cpuLimits: 300m
   scaleType: Job
-  failedJobsHistoryLimit: 5
-  successfulJobsHistoryLimit: 5
   triggers:
     - type: azure-servicebus
       topicName: "ccpay-service-callback-topic"
@@ -14,6 +12,8 @@ function:
       connectionFromEnv: SERVICE_CALLBACK_BUS_CONNECTION
       connection: SERVICE_CALLBACK_BUS_CONNECTION
       queueLength: 1
+      metadata:
+        messageCount: "1"
   keyVaults:
     "ccpay":
       secrets:
@@ -26,3 +26,6 @@ function:
 
 servicebus:
   enabled: false
+
+failedJobsHistoryLimit: 5
+successfulJobsHistoryLimit: 5
