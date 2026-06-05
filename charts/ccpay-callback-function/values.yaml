@@ -24,8 +24,3 @@ function:
 
 servicebus:
   enabled: false
-
-# Add this at the root level of your component file to override the chart-function base values:
-rollout:
-  strategy: gradual
-  propagationPolicy: foreground
