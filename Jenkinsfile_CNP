@@ -35,4 +35,36 @@ withPipeline(type, product, component) {
         echo 'Running callback-function smoke test'
         sh 'yarn test:smoke'
     }
+    afterAlways('smoketest:preview') {
+        echo 'Inspecting deployed Helm release metadata after preview smoke test'
+        sh '''#!/usr/bin/env bash
+set +e
+releases=$(helm list --all -q --namespace fees-pay | grep '^ccpay-callback-function' || true)
+if [ -z "$releases" ]; then
+  echo 'No matching Helm releases found in fees-pay namespace'
+  exit 0
+fi
+
+for release in $releases; do
+  echo "===== helm get metadata $release ====="
+  helm get metadata "$release" -n fees-pay || true
+done
+'''
+    }
+    afterAlways('smoketest:aat') {
+        echo 'Inspecting deployed Helm release metadata after AAT smoke test'
+        sh '''#!/usr/bin/env bash
+set +e
+releases=$(helm list --all -q --namespace fees-pay | grep '^ccpay-callback-function' || true)
+if [ -z "$releases" ]; then
+  echo 'No matching Helm releases found in fees-pay namespace'
+  exit 0
+fi
+
+for release in $releases; do
+  echo "===== helm get metadata $release ====="
+  helm get metadata "$release" -n fees-pay || true
+done
+'''
+    }
 }
