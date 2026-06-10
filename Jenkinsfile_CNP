@@ -31,11 +31,11 @@ withPipeline(type, product, component) {
     disableLegacyDeployment()
     nonServiceApp()
     loadVaultSecrets(secrets)
-    before('smoketest:preview') {
+    before('deploy:preview') {
         echo 'Running callback-function smoke test'
         sh 'yarn test:smoke'
     }
-    afterAlways('smoketest:preview') {
+    afterAlways('deploy:preview') {
         echo 'Inspecting deployed Helm release metadata after preview smoke test'
         sh '''#!/usr/bin/env bash
 set +e
