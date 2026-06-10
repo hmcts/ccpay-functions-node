@@ -38,6 +38,12 @@ Run tests
 
 `yarn test`
 
+Smoke test
+
+`yarn test:smoke`
+
+The smoke test is intended for CI/Jenkins and runs a lightweight end-to-end check of the function without requiring a persistent application instance. It starts a temporary local callback endpoint, runs the function with mocked Azure dependencies, verifies that a callback is sent successfully, and then shuts everything down cleanly.
+
 .
 
 Debugging tests
