@@ -150,4 +150,3 @@ main().catch((err) => {
     process.stderr.write(`[smoke] ${err.stack || err.message}\n`);
     process.exitCode = 1;
 });
-

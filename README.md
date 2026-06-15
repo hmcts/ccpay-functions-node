@@ -32,7 +32,7 @@ SERVICE_CALLBACK_URL_PATTERN='^(?:https?:\/\/(?:[a-z0-9-]+-(aat|prod|demo|ithc|p
 
 Start
 
-`yarn start` 
+`yarn start`
 
 Run tests
 

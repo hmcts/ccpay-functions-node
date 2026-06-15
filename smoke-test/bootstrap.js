@@ -162,4 +162,3 @@ Module._load = function patchedLoad(request, parent, isMain) {
 
     return originalLoad(request, parent, isMain);
 };
-
