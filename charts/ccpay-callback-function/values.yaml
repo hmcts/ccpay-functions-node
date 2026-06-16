@@ -1,7 +1,5 @@
 function:
   image: 'hmctsprod.azurecr.io/ccpay/callback-function:latest'
-  successfulJobsHistoryLimit: 5
-  failedJobsHistoryLimit: 5
   memoryRequests: 64Mi
   cpuRequests: 100m
   memoryLimits: 500Mi
@@ -29,6 +27,3 @@ function:
 
 servicebus:
   enabled: false
-
-successfulJobsHistoryLimit: 5
-failedJobsHistoryLimit: 5
