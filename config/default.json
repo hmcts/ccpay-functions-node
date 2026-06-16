@@ -8,6 +8,7 @@
   "s2sUrl": "http://rpe-service-auth-provider-demo.service.core-compute-demo.internal",
   "microservicePaymentApp": "payment_app",
   "extraServiceLogging": false,
+  "serviceCallbackUrlPattern": "^https?://([a-z0-9-]+-(aat|prod|demo|ithc|perftest)\\.service\\.core-compute-\\2\\.internal|(www\\.)?(apply-divorce|end-civil-partnership)\\.service\\.gov\\.uk)(?:/.*)?$",
   "secrets": {
     "ccpay": {
       "payment-s2s-secret": "Dummy"

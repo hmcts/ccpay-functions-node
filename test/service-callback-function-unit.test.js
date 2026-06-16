@@ -101,6 +101,116 @@ describe("When callback url does not match allowed pattern", function () {
     });
 });
 
+describe("When callback url pattern is overridden via config", function () {
+    const externalServiceCallbackUrlPattern = '^https?://(?:[a-z0-9-]+-(aat|prod|demo|ithc|perftest)\\.service\\.core-compute-\\1\\.internal|(?:www\\.)?(?:apply-divorce|end-civil-partnership)\\.service\\.gov\\.uk|[a-z0-9-]+\\.preview\\.platform\\.hmcts\\.net)(?:/.*)?$';
+
+    const createOverriddenServiceCallbackFunction = (serviceCallbackUrlPattern) => {
+        const sbClientStub = {
+            createSubscriptionClient: sandbox.stub().returnsThis(),
+            createReceiver: sandbox.stub().returnsThis(),
+            receiveMessages: sandbox.stub().callsFake(() => Promise.resolve(messages)),
+            createTopicClient: sandbox.stub().returnsThis(),
+            scheduleMessage: sandbox.stub().resolves(),
+            createSender: sandbox.stub().returnsThis(),
+            close: sandbox.stub().returnsThis()
+        };
+
+        const configValues = {
+            servicecallbackBusConnection: '<Service-Bus-Connection>',
+            servicecallbackTopicName: 'ccpay-service-callback-topic',
+            servicecallbackSubscriptionName: 'serviceCallbackPremiumSubscription',
+            processMessagesCount: 10,
+            delayMessageMinutes: 30,
+            s2sUrl: 'http://rpe-service-auth-provider-demo.service.core-compute-demo.internal',
+            'secrets.ccpay.payment-s2s-secret': 'Dummy',
+            microservicePaymentApp: 'payment_app',
+            extraServiceLogging: false,
+            serviceCallbackUrlPattern
+        };
+
+        const configStub = {
+            get: sandbox.stub().callsFake((key) => configValues[key])
+        };
+
+        return {
+            configStub,
+            serviceCallbackFunctionWithConfig: proxyquire.noPreserveCache()('../serviceCallbackFunction/serviceCallbackFunction', {
+                '@azure/service-bus': {
+                    ServiceBusClient: {
+                        createFromConnectionString: sandbox.stub().returns(sbClientStub)
+                    },
+                    ReceiveMode: {
+                        peekLock: 'peekLock'
+                    }
+                },
+                '@hmcts/properties-volume': {
+                    addTo: sandbox.stub().callsFake((loadedConfig) => loadedConfig)
+                },
+                config: configStub
+            })
+        };
+    };
+
+    const createMessage = (url) => [{
+        correlationId: 1234,
+        body: JSON.stringify({
+            "amount": 3000000,
+        }),
+        userProperties: {
+            retries: 0,
+            serviceName: 'Example',
+            serviceCallbackUrl: url
+        },
+        complete: sandbox.stub(),
+        clone: sandbox.stub(),
+        deadLetter: sandbox.stub().resolves()
+    }];
+
+    it('uses the configured regex instead of the default allowlist', async function () {
+        messages = createMessage(invalidServiceCallbackUrl);
+
+        sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
+        sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
+
+        const {
+            configStub,
+            serviceCallbackFunctionWithConfig
+        } = createOverriddenServiceCallbackFunction('^https://www\\.example\\.com(?:/.*)?$');
+
+        await serviceCallbackFunctionWithConfig();
+
+        expect(configStub.get).to.have.been.calledWith('serviceCallbackUrlPattern');
+        expect(axiosRequest.post).to.have.been.calledOnce;
+        expect(axiosRequest.put).to.have.been.calledOnce;
+        expect(messages[0].deadLetter).to.not.have.been.called;
+    });
+
+    [
+        'http://prl-cos-demo.service.core-compute-demo.internal/service-request-update',
+        'https://probate-back-office-pr-3744.preview.platform.hmcts.net/payment/gor-payment-request-update',
+        'https://civil-citizen-ui-pr-7720-civil-service.preview.platform.hmcts.net/service-request-update-claim-issued'
+    ].forEach((url) => {
+        it(`accepts callback url from externally overridden pattern: ${url}`, async function () {
+            messages = createMessage(url);
+
+            sandbox.stub(axiosRequest, 'put').resolves({"data":{"amount":3000000},status:200});
+            sandbox.stub(axiosRequest, 'post').resolves({"data":"12345",status:200});
+
+            const {
+                configStub,
+                serviceCallbackFunctionWithConfig
+            } = createOverriddenServiceCallbackFunction(externalServiceCallbackUrlPattern);
+
+            await serviceCallbackFunctionWithConfig();
+
+            expect(configStub.get).to.have.been.calledWith('serviceCallbackUrlPattern');
+            expect(axiosRequest.post).to.have.been.calledOnce;
+            expect(axiosRequest.put).to.have.been.calledOnce;
+            expect(messages[0].deadLetter).to.not.have.been.called;
+        });
+    });
+});
+
 describe("When validating callback url allowlist matching", function () {
     const validUrls = [
         'https://payments-aat.service.core-compute-aat.internal/callback',
@@ -111,8 +221,8 @@ describe("When validating callback url allowlist matching", function () {
         'https://payments-aat.service.core-compute-aat.internal/callback?foo=bar',
         'https://apply-divorce.service.gov.uk/callback',
         'https://www.apply-divorce.service.gov.uk/callback',
-        'https://end-civil-partnership.service.gov.uk/callback'
-    ];
+        'https://end-civil-partnership.service.gov.uk/callback',
+        'http://prl-cos-demo.service.core-compute-demo.internal/service-request-update'    ];
     const invalidUrls = [
         'https://payments-aat.service.core-compute-prod.internal/callback',
         'http://127.0.0.1/callback',

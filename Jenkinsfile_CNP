@@ -31,4 +31,8 @@ withPipeline(type, product, component) {
     disableLegacyDeployment()
     nonServiceApp()
     loadVaultSecrets(secrets)
+    before('Publish Helm chart') {
+        echo 'Running callback-function smoke test'
+        sh 'yarn test:smoke'
+    }
 }

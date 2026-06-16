@@ -14,8 +14,9 @@ const s2sUrl = config.get('s2sUrl');
 const s2sSecret = config.get('secrets.ccpay.payment-s2s-secret');
 const microService = config.get('microservicePaymentApp');
 const extraServiceLogging = config.get('extraServiceLogging');
+const serviceCallbackUrlPattern = config.get('serviceCallbackUrlPattern');
 const MAX_RETRIES = 5;
-const SERVICE_CALLBACK_URL_PATTERN = /^https?:\/\/([a-z0-9-]+-(aat|prod|demo|ithc|perftest)\.service\.core-compute-\2\.internal|(www\.)?(apply-divorce|end-civil-partnership)\.service\.gov\.uk)(?:\/.*)?$/;
+const SERVICE_CALLBACK_URL_PATTERN = new RegExp(serviceCallbackUrlPattern);
 
 module.exports = async function serviceCallbackFunction() {
     const sbClient = ServiceBusClient.createFromConnectionString(connectionString);
