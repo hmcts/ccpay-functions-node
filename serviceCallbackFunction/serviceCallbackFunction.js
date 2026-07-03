@@ -14,6 +14,7 @@ const s2sUrl = config.get('s2sUrl');
 const s2sSecret = config.get('secrets.ccpay.payment-s2s-secret');
 const microService = config.get('microservicePaymentApp');
 const extraServiceLogging = config.get('extraServiceLogging');
+const serviceCallbackUrlPattern = config.get('serviceCallbackUrlPattern');
 const deadLetterEmailEnabled = config.get('deadLetterEmailEnabled');
 const deadLetterSmtpHost = config.get('deadLetterSmtpHost');
 const deadLetterSmtpPort = config.get('deadLetterSmtpPort');

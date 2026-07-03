@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node serviceCallbackFunction/index.js",
     "test": "nyc mocha test/*.js",
+    "test:smoke": "node smoke-test/smoke-test.js",
     "lint": "eslint .",
     "test:coverage": "nyc check-coverage --statements 80 --branches 80 --functions 20 --lines 80",
     "test:a11y": "node --version",
@@ -16,9 +17,9 @@
   },
   "dependencies": {
     "@azure/service-bus": "^1.1.7",
-    "@hmcts/properties-volume": "^1.3.2",
+    "@hmcts/properties-volume": "^1.4.0",
     "applicationinsights": "2.9.8",
-    "axios": "^1.15.0",
+    "axios": "^1.17.0",
     "config": "^3.3.1",
     "node-fetch": ">=3.1.1",
     "nodemailer": "^8.0.5",
@@ -49,7 +50,8 @@
   },
   "resolutions": {
     "cookiejar": ">=2.1.4",
-    "form-data@npm:^3.0.0": "npm:3.0.4",
+    "form-data@npm:^3.0.0": "npm:3.0.5",
+    "form-data@npm:^4.0.0": "npm:4.0.6",
     "follow-redirects": "1.16.0",
     "xml2js": ">=0.6.2",
     "json5": ">=2.2.3",
@@ -57,7 +59,8 @@
     "js-yaml": "4.1.1",
     "jws": "4.0.1",
     "lodash": "4.18.1",
-    "semver": "7.7.4"
+    "semver": "7.7.4",
+    "uuid": "11.1.1"
   },
   "packageManager": "yarn@4.12.0"
 }

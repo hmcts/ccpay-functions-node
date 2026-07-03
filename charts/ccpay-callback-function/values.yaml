@@ -1,10 +1,12 @@
 function:
-  image: 'hmctspublic.azurecr.io/ccpay/callback-function:latest'
+  image: 'hmctsprod.azurecr.io/ccpay/callback-function:latest'
   memoryRequests: 64Mi
   cpuRequests: 100m
   memoryLimits: 500Mi
   cpuLimits: 300m
   scaleType: Job
+  failedJobsHistoryLimit: 5
+  successfulJobsHistoryLimit: 5
   triggers:
     - type: azure-servicebus
       topicName: "ccpay-service-callback-topic"
@@ -12,6 +14,7 @@ function:
       connectionFromEnv: SERVICE_CALLBACK_BUS_CONNECTION
       connection: SERVICE_CALLBACK_BUS_CONNECTION
       queueLength: 1
+      messageCount: 5
   keyVaults:
     "ccpay":
       secrets:
@@ -20,6 +23,7 @@ function:
     S2S_URL: http://rpe-service-auth-provider-{{ .Values.global.environment }}.service.core-compute-{{ .Values.global.environment }}.internal
     MICROSERVICE_PAYMENT_APP: "payment_app"
     SERVICE_LOGGING_ENABLED: false
+    SERVICE_CALLBACK_URL_PATTERN: "^https?://([a-z0-9-]+-(aat|prod|demo|ithc|perftest)\\.service\\.core-compute-\\2\\.internal|(www\\.)?(apply-divorce|end-civil-partnership)\\.service\\.gov\\.uk)(?:/.*)?$"
 
 servicebus:
   enabled: false
