@@ -27,7 +27,7 @@ const deadLetterEmailTo = config.get('deadLetterEmailTo');
 const deadLetterEmailSubject = config.get('deadLetterEmailSubject');
 const smtpClient = require('./smtpClient');
 const MAX_RETRIES = 5;
-const SERVICE_CALLBACK_URL_PATTERN = /^https?:\/\/([a-z0-9-]+-(aat|prod|demo|ithc|perftest)\.service\.core-compute-\2\.internal|(www\.)?(apply-divorce|end-civil-partnership)\.service\.gov\.uk)(?:\/.*)?$/;
+const SERVICE_CALLBACK_URL_PATTERN = new RegExp(serviceCallbackUrlPattern);
 
 module.exports = async function serviceCallbackFunction() {
     const sbClient = ServiceBusClient.createFromConnectionString(connectionString);
