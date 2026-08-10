@@ -1,6 +1,8 @@
 #!groovy
 //noinspection GroovyUnusedAssignment
 @Library("Infrastructure")
+import uk.gov.hmcts.contino.azure.Acr
+
 def type = "nodejs"
 def product = "ccpay"
 def component = "callback-function"
@@ -65,9 +67,17 @@ def registry() {
 }
 
 def loginToAcr() {
-    // Authenticate docker to the ACR so local builds can pull the base image and push.
-    // Mirrors the library's acr.login() used around its own docker builds.
-    sh "az acr login --name hmctsprod"
+    // The library's acr login does `az login --identity` + sets AZURE_CONFIG_DIR and then
+    // `az acr login`. A bare `az acr login` fails because no identity context is active yet.
+    def subscription = env.NONPROD_SUBSCRIPTION_NAME ?: 'nonprod'
+    localAcrLogin(subscription)
+}
+
+def localAcrLogin(String subscription) {
+    withAcrClient(subscription) {
+        def acr = new Acr(this, subscription, env.REGISTRY_NAME, env.REGISTRY_RESOURCE_GROUP, env.REGISTRY_SUBSCRIPTION)
+        acr.login()
+    }
 }
 
 def shortSha() {
