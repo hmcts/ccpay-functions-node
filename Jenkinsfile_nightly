@@ -1,15 +1,16 @@
 #!groovy
 //noinspection GroovyUnusedAssignment
 @Library("Infrastructure")
+import groovy.transform.Field
 
-def product = "ccpay"
-def component = "callback-function"
+@Field def product = "ccpay"
+@Field def component = "callback-function"
 
-def ftNamespace = "fees-pay"
-def ftRelease = "ccpay-callback-function-ft"
-def ftTopic = "ccpay-service-callback-ft-topic"
-def ftSubscription = "serviceCallbackFunctionalTestSubscription"
-def ftBusSecret = "ccpay-callback-function-premium-sb"
+@Field def ftNamespace = "fees-pay"
+@Field def ftRelease = "ccpay-callback-function-ft"
+@Field def ftTopic = "ccpay-service-callback-ft-topic"
+@Field def ftSubscription = "serviceCallbackFunctionalTestSubscription"
+@Field def ftBusSecret = "ccpay-callback-function-premium-sb"
 
 def ftBranch() {
     def slug = (env.BRANCH_NAME ?: '').toLowerCase().replaceAll('[^a-z0-9]+', '-').replaceAll(/^-|-$/, '')
@@ -26,10 +27,14 @@ def ftJob() {
 }
 
 def loginToAatAks() {
-    sh "az aks get-credentials --resource-group ${env.AAT_AKS_RESOURCE_GROUP ?: 'cft-aat-00-rg'} " +
-       "--name ${env.AAT_AKS_CLUSTER_NAME ?: 'cft-aat-00-aks'} " +
-       "--subscription ${env.AKS_AAT_SUBSCRIPTION_NAME ?: 'DCD-CFTAPPS-STG'} " +
-       "-a --overwrite-existing"
+    def subscription = env.NONPROD_SUBSCRIPTION_NAME ?: 'nonprod'
+    withSubscriptionLogin(subscription) {
+        sh "env AZURE_CONFIG_DIR=/opt/jenkins/.azure-${subscription} az aks get-credentials " +
+           "--resource-group ${env.AAT_AKS_RESOURCE_GROUP ?: 'cft-aat-01-rg'} " +
+           "--name ${env.AAT_AKS_CLUSTER_NAME ?: 'cft-aat-01-aks'} " +
+           "--subscription ${env.AKS_AAT_SUBSCRIPTION_NAME ?: 'DCD-CNP-DEV'} " +
+           "-a --overwrite-existing"
+    }
 }
 
 def registry() {
