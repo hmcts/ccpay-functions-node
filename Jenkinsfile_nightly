@@ -36,6 +36,11 @@ def registry() {
     return 'hmctsprod.azurecr.io'
 }
 
+def loginToAcr() {
+    // Authenticate docker to the ACR so local builds can pull the base image and push.
+    sh "az acr login --name hmctsprod"
+}
+
 def shortSha() {
     return sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 }
@@ -46,6 +51,7 @@ def imageTag(String branch) {
 
 def buildImages() {
     def tag = imageTag(env.BRANCH_NAME)
+    loginToAcr()
 
     sh "docker build -t ${registry()}/ccpay/${component}:${tag} ."
     sh "docker push ${registry()}/ccpay/${component}:${tag}"

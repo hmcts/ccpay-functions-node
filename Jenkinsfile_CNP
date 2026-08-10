@@ -64,6 +64,12 @@ def registry() {
     return 'hmctsprod.azurecr.io'
 }
 
+def loginToAcr() {
+    // Authenticate docker to the ACR so local builds can pull the base image and push.
+    // Mirrors the library's acr.login() used around its own docker builds.
+    sh "az acr login --name hmctsprod"
+}
+
 def shortSha() {
     return sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 }
@@ -76,6 +82,7 @@ def imageTag(String branch) {
 
 def buildFunctionalImages() {
     def tag = imageTag(env.BRANCH_NAME)
+    loginToAcr()
     // Build image(s) using our own tag so the ephemeral functional-test release can reference
     // them regardless of how withPipeline tags its own main image build.
     sh "docker build -t ${registry()}/ccpay/callback-function-rig:${tag} rig"
@@ -86,6 +93,7 @@ def buildFunctionalImages() {
 
 def buildFunctionImage() {
     def tag = imageTag(env.BRANCH_NAME)
+    loginToAcr()
     sh "docker build -t ${registry()}/ccpay/${component}:${tag} ."
     sh "docker push ${registry()}/ccpay/${component}:${tag}"
 }
