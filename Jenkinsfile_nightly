@@ -92,16 +92,13 @@ def runFunctionalTest() {
     sh "helm upgrade --install ${release} charts/ccpay-callback-function -n ${ftNamespace} --create-namespace " +
        "--set global.environment=aat " +
        "--set global.enableKeyVaults=true " +
+       "-f charts/ccpay-callback-function/values.ft.yaml " +
        "--set function.image=${registry()}/ccpay/${component}:${imageTag(branch)} " +
-       "--set 'function.environment.SERVICE_CALLBACK_TOPIC_NAME=${ftTopic}' " +
-       "--set 'function.environment.SERVICE_CALLBACK_SUBSCRIPTION=${ftSubscription}' " +
-       "--set 'function.triggers[0].topicName=${ftTopic}' " +
-       "--set 'function.triggers[0].subscriptionName=${ftSubscription}' " +
        "--set 'function.environment.SERVICE_CALLBACK_URL_PATTERN=^http://${release}-rig(:[0-9]+)?(/.*)?\$' " +
        "--set 'function.secrets.SERVICE_CALLBACK_BUS_CONNECTION.secretRef=${ftBusSecret}' " +
        "--set 'function.secrets.SERVICE_CALLBACK_BUS_CONNECTION.key=SERVICE_CALLBACK_BUS_CONNECTION' " +
-       "--set rig.enabled=true --set rig.image=${registry()}/ccpay/callback-function-rig:${imageTag(branch)} " +
-       "--set functional-test.enabled=true --set functional-test.image=${registry()}/ccpay/callback-function-functional-test:${imageTag(branch)}"
+       "--set rig.image=${registry()}/ccpay/callback-function-rig:${imageTag(branch)} " +
+       "--set functional-test.image=${registry()}/ccpay/callback-function-functional-test:${imageTag(branch)}"
 }
 
 def waitForFunctionalTest() {
