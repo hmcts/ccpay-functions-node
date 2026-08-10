@@ -1,7 +1,8 @@
 FROM eclipse-temurin:17-jdk-alpine AS build
 WORKDIR /src
 COPY . .
-RUN javac -d /out src/main/java/uk/gov/hmcts/ccpay/callbackrig/CallbackRig.java \
+RUN mkdir -p /app \
+    && javac -d /out src/main/java/uk/gov/hmcts/ccpay/callbackrig/CallbackRig.java \
     && cd /out && jar cfe /app/callback-rig.jar uk.gov.hmcts.ccpay.callbackrig.CallbackRig .
 
 FROM eclipse-temurin:17-jre-alpine
