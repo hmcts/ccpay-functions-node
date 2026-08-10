@@ -1,0 +1,9 @@
+image: 'hmctsprod.azurecr.io/ccpay/callback-function-functional-test:latest'
+serviceBusTopicName: 'ccpay-service-callback-ft-topic'
+serviceBusConnectionSecretName: 'ccpay-callback-function-premium-sb'
+serviceBusConnectionSecretKey: 'SERVICE_CALLBACK_BUS_CONNECTION'
+timeoutMs: 60000
+memoryRequests: 64Mi
+cpuRequests: 100m
+memoryLimits: 256Mi
+cpuLimits: 200m

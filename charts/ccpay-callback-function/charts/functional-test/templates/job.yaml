@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "functional-test.fullname" . }}
+  labels:
+    app: {{ include "functional-test.fullname" . }}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ div (add .Values.timeoutMs 30000) 1000 }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "functional-test.fullname" . }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: functional-test
+          image: {{ .Values.image }}
+          imagePullPolicy: Always
+          env:
+            - name: SERVICE_CALLBACK_BUS_CONNECTION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.serviceBusConnectionSecretName }}
+                  key: {{ .Values.serviceBusConnectionSecretKey }}
+            - name: SERVICE_CALLBACK_TOPIC_NAME
+              value: {{ .Values.serviceBusTopicName }}
+            - name: RIG_CALLBACK_URL
+              value: http://{{ .Release.Name }}-rig:8080/callback
+            - name: RIG_RESULTS_URL
+              value: http://{{ .Release.Name }}-rig:8080/results
+            - name: FUNCTIONAL_TEST_TIMEOUT_MS
+              value: {{ .Values.timeoutMs | quote }}
+            - name: REPORT_DIR
+              value: /tmp/report
+          resources:
+            requests:
+              memory: {{ .Values.memoryRequests }}
+              cpu: {{ .Values.cpuRequests }}
+            limits:
+              memory: {{ .Values.memoryLimits }}
+              cpu: {{ .Values.cpuLimits }}

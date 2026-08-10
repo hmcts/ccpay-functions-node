@@ -1,0 +1,7 @@
+image: 'hmctsprod.azurecr.io/ccpay/callback-function-rig:latest'
+port: 8080
+replicas: 1
+memoryRequests: 64Mi
+cpuRequests: 100m
+memoryLimits: 256Mi
+cpuLimits: 200m

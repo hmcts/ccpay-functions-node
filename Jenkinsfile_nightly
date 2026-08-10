@@ -1,7 +1,7 @@
 #!groovy
 //noinspection GroovyUnusedAssignment
 @Library("Infrastructure")
-def type = "nodejs"
+
 def product = "ccpay"
 def component = "callback-function"
 
@@ -12,29 +12,7 @@ def ftTopic = "ccpay-service-callback-ft-topic"
 def ftSubscription = "serviceCallbackFunctionalTestSubscription"
 def ftBusSecret = "ccpay-callback-function-premium-sb"
 
-def secrets = [
-  'ccpay-${env}': [
-     secret('payment-s2s-secret', 'S2S_KEY_PAYMENT_APP')
-    ]
-]
-
-static LinkedHashMap<String, Object> secret(String secretName, String envVar) {
-    [ $class: 'AzureKeyVaultSecret',
-      secretType: 'Secret',
-      name: secretName,
-      version: '',
-      envVariable: envVar
-    ]
-}
-
-def vaultOverrides = [
-        'preview': 'aat',
-        'hmctsdemo': 'aat',
-
-]
-
 def registry() {
-    // Production/AAT builds publish to this registry. Adjust for non-prod (e.g. hmctssandbox.azurecr.io) as required.
     return 'hmctsprod.azurecr.io'
 }
 
@@ -43,27 +21,24 @@ def shortSha() {
 }
 
 def imageTag(String branch) {
-    // Follows the HMCTS branch-based image tag convention used for the main build.
     return "${branch}-${shortSha()}"
 }
 
-def buildFunctionalImages() {
+def buildImages() {
     def tag = imageTag(env.BRANCH_NAME)
-    // Build image(s) using our own tag so the ephemeral functional-test release can reference
-    // them regardless of how withPipeline tags its own main image build.
+
+    sh "docker build -t ${registry()}/ccpay/${component}:${tag} ."
+    sh "docker push ${registry()}/ccpay/${component}:${tag}"
+
     sh "docker build -t ${registry()}/ccpay/callback-function-rig:${tag} rig"
     sh "docker push ${registry()}/ccpay/callback-function-rig:${tag}"
+
     sh "docker build -t ${registry()}/ccpay/callback-function-functional-test:${tag} functional-test"
     sh "docker push ${registry()}/ccpay/callback-function-functional-test:${tag}"
 }
 
-def buildFunctionImage() {
-    def tag = imageTag(env.BRANCH_NAME)
-    sh "docker build -t ${registry()}/ccpay/${component}:${tag} ."
-    sh "docker push ${registry()}/ccpay/${component}:${tag}"
-}
-
 def runFunctionalTest() {
+    def branch = env.BRANCH_NAME
     sh "helm upgrade --install ${ftRelease} charts/ccpay-callback-function -n ${ftNamespace} --create-namespace " +
        "--set global.environment=aat " +
        "--set function.image=${registry()}/ccpay/${component}:${imageTag(branch)} " +
@@ -113,32 +88,20 @@ def teardownFunctionalTest() {
     sh "helm uninstall ${ftRelease} -n ${ftNamespace}"
 }
 
-withPipeline(type, product, component) {
-    overrideVaultEnvironments(vaultOverrides)
-    disableLegacyDeployment()
-    nonServiceApp()
-    loadVaultSecrets(secrets)
-
-    after('build') {
-        if (env.BRANCH_NAME == 'master') {
-            buildFunctionImage()
-            buildFunctionalImages()
-        }
+withNightlyPipeline("nodejs", product, component) {
+    after('checkout') {
+        // Nightly runs against the current source so the fresh image exercises the latest code.
+        buildImages()
     }
 
-    before('Publish Helm chart') {
-        echo 'Running callback-function smoke test'
-        sh 'yarn test:smoke'
-
-        if (env.BRANCH_NAME == 'master') {
-            echo 'Running callback-function functional tests against the real Service Bus'
-            try {
-                runFunctionalTest()
-                waitForFunctionalTest()
-            } finally {
-                collectAndPublishFunctionalTestReport()
-                teardownFunctionalTest()
-            }
+    after('test') {
+        echo 'Running callback-function functional tests against the real Service Bus'
+        try {
+            runFunctionalTest()
+            waitForFunctionalTest()
+        } finally {
+            collectAndPublishFunctionalTestReport()
+            teardownFunctionalTest()
         }
     }
 }

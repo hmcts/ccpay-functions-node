@@ -1,0 +1,6 @@
+apiVersion: v2
+name: rig
+description: A Helm sub-chart for the callback-function functional test rig
+type: application
+version: 0.1.0
+appVersion: "1.0"
