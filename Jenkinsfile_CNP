@@ -83,12 +83,9 @@ def loginToAcr() {
 }
 
 def helmPrepare() {
-    // Mirror the library's Helm.setup()+dependencyUpdate(): authenticate to the ACR (so OCI chart
-    // dependencies like function/servicebus can be pulled) and fetch them into charts/ before install.
+    // Mirror the library's Helm setup: authenticate to the ACR so Helm can pull the OCI chart
+    // dependencies (function/servicebus) and fetch them into charts/ before install.
     def subscription = env.NONPROD_SUBSCRIPTION_NAME ?: 'nonprod'
-    withAcrClient(subscription) {
-        sh "env AZURE_CONFIG_DIR=/opt/jenkins/.azure-${subscription} az acr configure --defaults acr=${env.REGISTRY_NAME}"
-    }
     withAcrClient(subscription) {
         sh "env AZURE_CONFIG_DIR=/opt/jenkins/.azure-${subscription} az acr login " +
            "--name ${env.REGISTRY_NAME} --subscription ${env.REGISTRY_SUBSCRIPTION}"
