@@ -52,6 +52,20 @@ def loginToAcr() {
     }
 }
 
+def helmPrepare() {
+    // Mirror the library's Helm.setup()+dependencyUpdate(): authenticate to the ACR (so OCI chart
+    // dependencies like function/servicebus can be pulled) and fetch them into charts/ before install.
+    def subscription = env.NONPROD_SUBSCRIPTION_NAME ?: 'nonprod'
+    withAcrClient(subscription) {
+        sh "env AZURE_CONFIG_DIR=/opt/jenkins/.azure-${subscription} az acr configure --defaults acr=${env.REGISTRY_NAME}"
+    }
+    withAcrClient(subscription) {
+        sh "env AZURE_CONFIG_DIR=/opt/jenkins/.azure-${subscription} az acr login " +
+           "--name ${env.REGISTRY_NAME} --subscription ${env.REGISTRY_SUBSCRIPTION}"
+    }
+    sh "helm dependency update charts/ccpay-callback-function"
+}
+
 def shortSha() {
     return sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 }
@@ -77,6 +91,7 @@ def buildImages() {
 def runFunctionalTest() {
     def branch = env.BRANCH_NAME
     def release = ftReleaseFull()
+    helmPrepare()
     sh "helm upgrade --install ${release} charts/ccpay-callback-function -n ${ftNamespace} --create-namespace " +
        "--set global.environment=aat " +
        "--set global.enableKeyVaults=true " +
