@@ -7,10 +7,36 @@ def component = "callback-function"
 
 def ftNamespace = "fees-pay"
 def ftRelease = "ccpay-callback-function-ft"
-def ftJob = "${ftRelease}-functional-test"
 def ftTopic = "ccpay-service-callback-ft-topic"
 def ftSubscription = "serviceCallbackFunctionalTestSubscription"
 def ftBusSecret = "ccpay-callback-function-premium-sb"
+
+def ftBranch() {
+    def slug = (env.BRANCH_NAME ?: '').toLowerCase().replaceAll('[^a-z0-9]+', '-').replaceAll(/^-|-$/, '')
+    return slug ?: 'unknown'
+}
+
+def ftReleaseFull() {
+    // Unique per branch so concurrent master/PR/nightly builds never clobber each other's Helm release
+    return "${ftRelease}-${ftBranch()}"
+}
+
+def ftJob() {
+    return "${ftReleaseFull()}-functional-test"
+}
+
+def isFTBuild() {
+    def branch = env.BRANCH_NAME ?: ''
+    return branch == 'master' || branch.startsWith('PR')
+}
+
+def loginToAatAks() {
+    // PR builds start with preview creds; explicitly target the AAT cluster
+    sh "az aks get-credentials --resource-group ${env.AAT_AKS_RESOURCE_GROUP ?: 'cft-aat-00-rg'} " +
+       "--name ${env.AAT_AKS_CLUSTER_NAME ?: 'cft-aat-00-aks'} " +
+       "--subscription ${env.AKS_AAT_SUBSCRIPTION_NAME ?: 'DCD-CFTAPPS-STG'} " +
+       "-a --overwrite-existing"
+}
 
 def secrets = [
   'ccpay-${env}': [
@@ -44,7 +70,8 @@ def shortSha() {
 
 def imageTag(String branch) {
     // Follows the HMCTS branch-based image tag convention used for the main build.
-    return "${branch}-${shortSha()}"
+    // Lowercased so the tag is valid for both master (master-<sha>) and PR (pr-<n>-<sha>).
+    return "${branch.toLowerCase()}-${shortSha()}"
 }
 
 def buildFunctionalImages() {
@@ -64,14 +91,17 @@ def buildFunctionImage() {
 }
 
 def runFunctionalTest() {
-    sh "helm upgrade --install ${ftRelease} charts/ccpay-callback-function -n ${ftNamespace} --create-namespace " +
+    def branch = env.BRANCH_NAME
+    def release = ftReleaseFull()
+    sh "helm upgrade --install ${release} charts/ccpay-callback-function -n ${ftNamespace} --create-namespace " +
        "--set global.environment=aat " +
+       "--set global.enableKeyVaults=true " +
        "--set function.image=${registry()}/ccpay/${component}:${imageTag(branch)} " +
        "--set 'function.environment.SERVICE_CALLBACK_TOPIC_NAME=${ftTopic}' " +
        "--set 'function.environment.SERVICE_CALLBACK_SUBSCRIPTION=${ftSubscription}' " +
        "--set 'function.triggers[0].topicName=${ftTopic}' " +
        "--set 'function.triggers[0].subscriptionName=${ftSubscription}' " +
-       "--set 'function.environment.SERVICE_CALLBACK_URL_PATTERN=^http://${ftRelease}-rig(:[0-9]+)?(/.*)?\$' " +
+       "--set 'function.environment.SERVICE_CALLBACK_URL_PATTERN=^http://${release}-rig(:[0-9]+)?(/.*)?\$' " +
        "--set 'function.secrets.SERVICE_CALLBACK_BUS_CONNECTION.secretRef=${ftBusSecret}' " +
        "--set 'function.secrets.SERVICE_CALLBACK_BUS_CONNECTION.key=SERVICE_CALLBACK_BUS_CONNECTION' " +
        "--set rig.enabled=true --set rig.image=${registry()}/ccpay/callback-function-rig:${imageTag(branch)} " +
@@ -79,13 +109,14 @@ def runFunctionalTest() {
 }
 
 def waitForFunctionalTest() {
-    sh "kubectl -n ${ftNamespace} wait --for=condition=complete job/${ftJob} --timeout=240s"
+    sh "kubectl -n ${ftNamespace} wait --for=condition=complete job/${ftJob()} --timeout=240s"
 }
 
 def collectAndPublishFunctionalTestReport() {
+    def job = ftJob()
     try {
         sh "mkdir -p functional-output/functional/allure"
-        def pod = sh(script: "kubectl -n ${ftNamespace} get pods -l app=${ftJob} --field-selector=status.phase=Succeeded -o jsonpath='{.items[0].metadata.name}'", returnStdout: true).trim()
+        def pod = sh(script: "kubectl -n ${ftNamespace} get pods -l app=${job} --field-selector=status.phase=Succeeded -o jsonpath='{.items[0].metadata.name}'", returnStdout: true).trim()
         if (!pod) {
             echo 'No functional-test pod found to retrieve a report from'
         } else {
@@ -110,7 +141,7 @@ def collectAndPublishFunctionalTestReport() {
 }
 
 def teardownFunctionalTest() {
-    sh "helm uninstall ${ftRelease} -n ${ftNamespace}"
+    sh "helm uninstall ${ftReleaseFull()} -n ${ftNamespace}"
 }
 
 withPipeline(type, product, component) {
@@ -120,25 +151,33 @@ withPipeline(type, product, component) {
     loadVaultSecrets(secrets)
 
     afterSuccess('build') {
-        if (env.BRANCH_NAME == 'master') {
+        if (isFTBuild()) {
+            // Build the function + rig + functional-test images under our own tag so the
+            // ephemeral release can reference them on both master and PR builds.
             buildFunctionImage()
             buildFunctionalImages()
+
+            // Serialise on the shared AAT FT topic/subscription across master, PR and nightly runs.
+            lock("${product}-${component}-functional-test") {
+                try {
+                    loginToAatAks()
+                    runFunctionalTest()
+                    waitForFunctionalTest()
+                } finally {
+                    try {
+                        loginToAatAks()
+                    } catch (err) {
+                        echo "AAT login failed during teardown: ${err}"
+                    }
+                    collectAndPublishFunctionalTestReport()
+                    teardownFunctionalTest()
+                }
+            }
         }
     }
 
     before('Publish Helm chart') {
         echo 'Running callback-function smoke test'
         sh 'yarn test:smoke'
-
-        if (env.BRANCH_NAME == 'master') {
-            echo 'Running callback-function functional tests against the real Service Bus'
-            try {
-                runFunctionalTest()
-                waitForFunctionalTest()
-            } finally {
-                collectAndPublishFunctionalTestReport()
-                teardownFunctionalTest()
-            }
-        }
     }
 }
