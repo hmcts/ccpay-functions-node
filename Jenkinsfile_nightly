@@ -128,23 +128,16 @@ def collectAndPublishFunctionalTestReport() {
     def job = ftJob()
     try {
         sh "mkdir -p functional-output/functional/allure"
-        // The harness emits the report base64-encoded to stdout, so select the latest pod
-        // regardless of phase and decode it from the logs (kubectl cp cannot exec into a
-        // completed pod).
+        // The harness emits the report files base64-encoded to stdout, so select the latest pod
+        // regardless of phase and decode from the logs (kubectl cp cannot exec into a completed
+        // pod, and Groovy decodeBase64 is forbidden by the sandbox).
         def pod = sh(script: "kubectl -n ${ftNamespace} get pods -l app=${job} -o jsonpath='{.items[-1].metadata.name}'", returnStdout: true).trim()
         if (!pod || pod == '[]') {
             echo 'No functional-test pod found to retrieve a report from'
         } else {
             sh "kubectl -n ${ftNamespace} logs ${pod} --tail=500 || true"
-            def logs = sh(script: "kubectl -n ${ftNamespace} logs ${pod}", returnStdout: true).trim()
-            def m = (logs =~ /(?s)FUNCTIONAL_REPORT_BASE64_START\n(.*?)\nFUNCTIONAL_REPORT_BASE64_END/)
-            if (m.find() && m[0][1]) {
-                def payload = new groovy.json.JsonSlurper().parseText(m[0][1])
-                writeFile file: 'functional-output/functional/allure/index.html', text: new String(payload.indexHtml.decodeBase64())
-                writeFile file: 'functional-output/junit.xml', text: new String(payload.junitXml.decodeBase64())
-            } else {
-                echo 'No encoded functional-test report found in pod logs'
-            }
+            sh """kubectl -n ${ftNamespace} logs ${pod} | sed -n '/FUNCTIONAL_REPORT_HTML_B64_START/,/FUNCTIONAL_REPORT_HTML_B64_END/p' | sed '1d;\$d' | base64 -d > functional-output/functional/allure/index.html || true"""
+            sh """kubectl -n ${ftNamespace} logs ${pod} | sed -n '/FUNCTIONAL_REPORT_JUNIT_B64_START/,/FUNCTIONAL_REPORT_JUNIT_B64_END/p' | sed '1d;\$d' | base64 -d > functional-output/junit.xml || true"""
         }
     } catch (err) {
         echo "Could not retrieve functional-test report: ${err}"

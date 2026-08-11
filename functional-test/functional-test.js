@@ -152,19 +152,18 @@ function writeReport(passed, failureMessage) {
 }
 
 // Emit both report files base64-encoded to stdout so Jenkins can retrieve them via kubectl logs
-// even after the pod has terminated (kubectl cp cannot exec into a completed pod).
+// even after the pod has terminated (kubectl cp cannot exec into a completed pod). Each file uses
+// its own start/end markers so the Jenkinsfile can extract and decode them with sed + base64 -d
+// (avoiding Groovy decodeBase64, which the Jenkins sandbox forbids).
 function emitReportToStdout(passed, failureMessage) {
     try {
         fs.mkdirSync(reportDir, { recursive: true });
         const html = renderHtml(passed, failureMessage);
         const junit = renderJunitXml(passed, failureMessage);
-        const payload = JSON.stringify({
-            indexHtml: Buffer.from(html).toString('base64'),
-            junitXml: Buffer.from(junit).toString('base64')
-        });
-        process.stdout.write(`FUNCTIONAL_REPORT_BASE64_START\n${payload}\nFUNCTIONAL_REPORT_BASE64_END\n`);
+        process.stdout.write('FUNCTIONAL_REPORT_HTML_B64_START\n' + Buffer.from(html).toString('base64') + '\nFUNCTIONAL_REPORT_HTML_B64_END\n');
+        process.stdout.write('FUNCTIONAL_REPORT_JUNIT_B64_START\n' + Buffer.from(junit).toString('base64') + '\nFUNCTIONAL_REPORT_JUNIT_B64_END\n');
     } catch (err) {
-        process.stdout.write(`FUNCTIONAL_REPORT_BASE64_START\nFUNCTIONAL_REPORT_BASE64_END\n`);
+        process.stdout.write('FUNCTIONAL_REPORT_HTML_B64_START\nFUNCTIONAL_REPORT_HTML_B64_END\nFUNCTIONAL_REPORT_JUNIT_B64_START\nFUNCTIONAL_REPORT_JUNIT_B64_END\n');
     }
 }
 
