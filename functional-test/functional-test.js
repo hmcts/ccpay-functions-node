@@ -151,6 +151,23 @@ function writeReport(passed, failureMessage) {
     }
 }
 
+// Emit both report files base64-encoded to stdout so Jenkins can retrieve them via kubectl logs
+// even after the pod has terminated (kubectl cp cannot exec into a completed pod).
+function emitReportToStdout(passed, failureMessage) {
+    try {
+        fs.mkdirSync(reportDir, { recursive: true });
+        const html = renderHtml(passed, failureMessage);
+        const junit = renderJunitXml(passed, failureMessage);
+        const payload = JSON.stringify({
+            indexHtml: Buffer.from(html).toString('base64'),
+            junitXml: Buffer.from(junit).toString('base64')
+        });
+        process.stdout.write(`FUNCTIONAL_REPORT_BASE64_START\n${payload}\nFUNCTIONAL_REPORT_BASE64_END\n`);
+    } catch (err) {
+        process.stdout.write(`FUNCTIONAL_REPORT_BASE64_START\nFUNCTIONAL_REPORT_BASE64_END\n`);
+    }
+}
+
 async function main() {
     startedAt = Date.now();
 
@@ -228,10 +245,12 @@ async function main() {
 
 main().then(() => {
     writeReport(true);
+    emitReportToStdout(true);
     process.stdout.write('[functional] Functional test passed\n');
 }).catch((err) => {
     const failureMessage = `${err.stack || err.message}`;
     process.stderr.write(`[functional] ${failureMessage}\n`);
     writeReport(false, failureMessage);
+    emitReportToStdout(false, failureMessage);
     process.exitCode = 1;
 });

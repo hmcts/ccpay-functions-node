@@ -138,22 +138,49 @@ def runFunctionalTest() {
 }
 
 def waitForFunctionalTest() {
-    sh "kubectl -n ${ftNamespace} wait --for=condition=complete job/${ftJob()} --timeout=240s"
+    def job = ftJob()
+    def timeout = 240
+    def deadline = new Date().time + timeout * 1000
+    while (new Date().time < deadline) {
+        def state = sh(script: "kubectl -n ${ftNamespace} get job ${job} -o jsonpath='{.status.succeeded}:{.status.failed}'", returnStdout: true).trim()
+        echo "Functional test job ${job} status (succeeded:failed): ${state}"
+        def parts = state.split(':')
+        def succeeded = (parts.size() > 0 && parts[0]) ? parts[0].toInteger() : 0
+        def failed = (parts.size() > 1 && parts[1]) ? parts[1].toInteger() : 0
+        if (succeeded >= 1) {
+            echo "Functional test job ${job} completed"
+            return
+        }
+        if (failed >= 1) {
+            echo "Functional test job ${job} failed"
+            return
+        }
+        sleep 10
+    }
+    error "Functional test job ${job} did not reach a terminal state within ${timeout}s"
 }
 
 def collectAndPublishFunctionalTestReport() {
     def job = ftJob()
     try {
         sh "mkdir -p functional-output/functional/allure"
-        // The harness writes /tmp/report even on failure; a failed backoffLimit:0 job has a
-        // Failed pod, so select the latest pod regardless of phase and dump its logs.
+        // The harness emits the report base64-encoded to stdout, so select the latest pod
+        // regardless of phase and decode it from the logs (kubectl cp cannot exec into a
+        // completed pod).
         def pod = sh(script: "kubectl -n ${ftNamespace} get pods -l app=${job} -o jsonpath='{.items[-1].metadata.name}'", returnStdout: true).trim()
         if (!pod || pod == '[]') {
             echo 'No functional-test pod found to retrieve a report from'
         } else {
-            sh "kubectl -n ${ftNamespace} logs ${pod} --tail=200 || true"
-            sh "kubectl -n ${ftNamespace} cp ${pod}:/tmp/report/index.html functional-output/functional/allure/index.html || true"
-            sh "kubectl -n ${ftNamespace} cp ${pod}:/tmp/report/junit.xml functional-output/junit.xml || true"
+            sh "kubectl -n ${ftNamespace} logs ${pod} --tail=500 || true"
+            def logs = sh(script: "kubectl -n ${ftNamespace} logs ${pod}", returnStdout: true).trim()
+            def m = (logs =~ /(?s)FUNCTIONAL_REPORT_BASE64_START\n(.*?)\nFUNCTIONAL_REPORT_BASE64_END/)
+            if (m.find() && m[0][1]) {
+                def payload = new groovy.json.JsonSlurper().parseText(m[0][1])
+                writeFile file: 'functional-output/functional/allure/index.html', text: new String(payload.indexHtml.decodeBase64())
+                writeFile file: 'functional-output/junit.xml', text: new String(payload.junitXml.decodeBase64())
+            } else {
+                echo 'No encoded functional-test report found in pod logs'
+            }
         }
     } catch (err) {
         echo "Could not retrieve functional-test report: ${err}"
