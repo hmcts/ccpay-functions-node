@@ -3,7 +3,6 @@
 @Library("Infrastructure")
 import groovy.transform.Field
 
-@Field def type = "nodejs"
 @Field def product = "ccpay"
 @Field def component = "callback-function"
 
@@ -17,7 +16,7 @@ def ftBranch() {
 }
 
 def ftReleaseFull() {
-    // Unique per branch so concurrent master/PR/nightly builds never clobber each other's Helm release
+    // Same per-branch naming as the CNP pipeline so builds never clobber each other
     return "${ftRelease}-${ftBranch()}"
 }
 
@@ -25,14 +24,7 @@ def ftJob() {
     return "${ftReleaseFull()}-functional-test"
 }
 
-def isFTBuild() {
-    def branch = env.BRANCH_NAME ?: ''
-    return branch == 'master' || branch.startsWith('PR')
-}
-
 def loginToAatAks() {
-    // PR builds start with preview creds; explicitly target the AAT cluster. Runs within
-    // withSubscriptionLogin so an az identity context exists (bare `az` has none).
     def subscription = env.NONPROD_SUBSCRIPTION_NAME ?: 'nonprod'
     withSubscriptionLogin(subscription) {
         sh "env AZURE_CONFIG_DIR=/opt/jenkins/.azure-${subscription} az aks get-credentials " +
@@ -43,29 +35,7 @@ def loginToAatAks() {
     }
 }
 
-def secrets = [
-  'ccpay-${env}': [
-     secret('payment-s2s-secret', 'S2S_KEY_PAYMENT_APP')
-    ]
-]
-
-static LinkedHashMap<String, Object> secret(String secretName, String envVar) {
-    [ $class: 'AzureKeyVaultSecret',
-      secretType: 'Secret',
-      name: secretName,
-      version: '',
-      envVariable: envVar
-    ]
-}
-
-def vaultOverrides = [
-        'preview': 'aat',
-        'hmctsdemo': 'aat',
-
-]
-
 def registry() {
-    // Production/AAT builds publish to this registry. Adjust for non-prod (e.g. hmctssandbox.azurecr.io) as required.
     return 'hmctsprod.azurecr.io'
 }
 
@@ -96,27 +66,21 @@ def shortSha() {
 }
 
 def imageTag(String branch) {
-    // Follows the HMCTS branch-based image tag convention used for the main build.
-    // Lowercased so the tag is valid for both master (master-<sha>) and PR (pr-<n>-<sha>).
     return "${branch.toLowerCase()}-${shortSha()}"
 }
 
-def buildFunctionalImages() {
+def buildImages() {
     def tag = imageTag(env.BRANCH_NAME)
     loginToAcr()
-    // Build image(s) using our own tag so the ephemeral functional-test release can reference
-    // them regardless of how withPipeline tags its own main image build.
-    sh "docker build -t ${registry()}/ccpay/callback-function-rig:${tag} rig"
-    sh "docker push ${registry()}/ccpay/callback-function-rig:${tag}"
-    sh "docker build -t ${registry()}/ccpay/callback-function-functional-test:${tag} functional-test"
-    sh "docker push ${registry()}/ccpay/callback-function-functional-test:${tag}"
-}
 
-def buildFunctionImage() {
-    def tag = imageTag(env.BRANCH_NAME)
-    loginToAcr()
     sh "docker build -t ${registry()}/ccpay/${component}:${tag} ."
     sh "docker push ${registry()}/ccpay/${component}:${tag}"
+
+    sh "docker build -t ${registry()}/ccpay/callback-function-rig:${tag} rig"
+    sh "docker push ${registry()}/ccpay/callback-function-rig:${tag}"
+
+    sh "docker build -t ${registry()}/ccpay/callback-function-functional-test:${tag} functional-test"
+    sh "docker push ${registry()}/ccpay/callback-function-functional-test:${tag}"
 }
 
 def runFunctionalTest() {
@@ -194,40 +158,29 @@ def teardownFunctionalTest() {
     sh "helm uninstall ${ftReleaseFull()} -n ${ftNamespace} || true"
 }
 
-withPipeline(type, product, component) {
-    overrideVaultEnvironments(vaultOverrides)
-    disableLegacyDeployment()
-    nonServiceApp()
-    loadVaultSecrets(secrets)
-
-    afterSuccess('build') {
-        if (isFTBuild()) {
-            // Build the function + rig + functional-test images under our own tag so the
-            // ephemeral release can reference them on both master and PR builds.
-            buildFunctionImage()
-            buildFunctionalImages()
-
-            // Serialise on the shared AAT FT topic/subscription across master, PR and nightly runs.
-            lock("${product}-${component}-functional-test") {
-                try {
-                    loginToAatAks()
-                    runFunctionalTest()
-                    waitForFunctionalTest()
-                } finally {
-                    try {
-                        loginToAatAks()
-                    } catch (err) {
-                        echo "AAT login failed during teardown: ${err}"
-                    }
-                    collectAndPublishFunctionalTestReport()
-                    teardownFunctionalTest()
-                }
-            }
-        }
+withNightlyPipeline("nodejs", product, component) {
+    after('checkout') {
+        // Nightly runs against the current source so the fresh image exercises the latest code.
+        buildImages()
     }
 
-    before('Publish Helm chart') {
-        echo 'Running callback-function smoke test'
-        sh 'yarn test:smoke'
+    after('test') {
+        echo 'Running callback-function functional tests against the real Service Bus'
+        // Serialise on the shared AAT FT topic/subscription with the CNP pipeline.
+        lock("${product}-${component}-functional-test") {
+            try {
+                loginToAatAks()
+                runFunctionalTest()
+                waitForFunctionalTest()
+            } finally {
+                try {
+                    loginToAatAks()
+                } catch (err) {
+                    echo "AAT login failed during teardown: ${err}"
+                }
+                collectAndPublishFunctionalTestReport()
+                teardownFunctionalTest()
+            }
+        }
     }
 }

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rig.fullname" . }}
+  labels:
+    app: {{ include "rig.fullname" . }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "rig.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "rig.fullname" . }}
+    spec:
+      containers:
+        - name: rig
+          image: {{ .Values.image }}
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: {{ .Values.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.port | quote }}
+          resources:
+            requests:
+              memory: {{ .Values.memoryRequests }}
+              cpu: {{ .Values.cpuRequests }}
+            limits:
+              memory: {{ .Values.memoryLimits }}
+              cpu: {{ .Values.cpuLimits }}

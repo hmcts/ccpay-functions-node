@@ -27,3 +27,11 @@ function:
 
 servicebus:
   enabled: false
+
+rig:
+  enabled: false
+  image: 'hmctsprod.azurecr.io/ccpay/callback-function-rig:latest'
+
+functional-test:
+  enabled: false
+  image: 'hmctsprod.azurecr.io/ccpay/callback-function-functional-test:latest'
