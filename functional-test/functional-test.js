@@ -196,7 +196,7 @@ async function main() {
     };
 
     try {
-        await sender.sendMessages(message);
+        await sender.send(message);
     } finally {
         await sender.close();
         await sbClient.close();
