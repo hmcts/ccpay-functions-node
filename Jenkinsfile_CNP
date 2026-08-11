@@ -145,12 +145,15 @@ def collectAndPublishFunctionalTestReport() {
     def job = ftJob()
     try {
         sh "mkdir -p functional-output/functional/allure"
-        def pod = sh(script: "kubectl -n ${ftNamespace} get pods -l app=${job} --field-selector=status.phase=Succeeded -o jsonpath='{.items[0].metadata.name}'", returnStdout: true).trim()
-        if (!pod) {
+        // The harness writes /tmp/report even on failure; a failed backoffLimit:0 job has a
+        // Failed pod, so select the latest pod regardless of phase and dump its logs.
+        def pod = sh(script: "kubectl -n ${ftNamespace} get pods -l app=${job} -o jsonpath='{.items[-1].metadata.name}'", returnStdout: true).trim()
+        if (!pod || pod == '[]') {
             echo 'No functional-test pod found to retrieve a report from'
         } else {
-            sh "kubectl -n ${ftNamespace} cp ${pod}:/tmp/report/index.html functional-output/functional/allure/index.html"
-            sh "kubectl -n ${ftNamespace} cp ${pod}:/tmp/report/junit.xml functional-output/junit.xml"
+            sh "kubectl -n ${ftNamespace} logs ${pod} --tail=200 || true"
+            sh "kubectl -n ${ftNamespace} cp ${pod}:/tmp/report/index.html functional-output/functional/allure/index.html || true"
+            sh "kubectl -n ${ftNamespace} cp ${pod}:/tmp/report/junit.xml functional-output/junit.xml || true"
         }
     } catch (err) {
         echo "Could not retrieve functional-test report: ${err}"
