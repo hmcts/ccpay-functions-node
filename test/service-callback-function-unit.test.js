@@ -42,6 +42,7 @@ beforeEach(function () {
     });
 });
 
+// Happy path: a valid message is processed and the callback url is posted.
 describe("When messages are received", function () {
     before(function () {
         messages = [{
@@ -76,6 +77,7 @@ describe("When messages are received", function () {
     });
 });
 
+// A callback url that does not match the allowed pattern is dead-lettered.
 describe("When callback url does not match allowed pattern", function () {
     before(function () {
         messages = [{
@@ -101,6 +103,7 @@ describe("When callback url does not match allowed pattern", function () {
     });
 });
 
+// An externally-supplied serviceCallbackUrlPattern overrides the default allowlist.
 describe("When callback url pattern is overridden via config", function () {
     const externalServiceCallbackUrlPattern = '^https?://(?:[a-z0-9-]+-(aat|prod|demo|ithc|perftest)\\.service\\.core-compute-\\1\\.internal|(?:www\\.)?(?:apply-divorce|end-civil-partnership)\\.service\\.gov\\.uk|[a-z0-9-]+\\.preview\\.platform\\.hmcts\\.net)(?:/.*)?$';
 
@@ -211,6 +214,7 @@ describe("When callback url pattern is overridden via config", function () {
     });
 });
 
+// Verifies the allowlist accepts valid urls and dead-letters invalid ones.
 describe("When validating callback url allowlist matching", function () {
     const validUrls = [
         'https://payments-aat.service.core-compute-aat.internal/callback',
@@ -272,6 +276,7 @@ describe("When validating callback url allowlist matching", function () {
     });
 });
 
+// A message without a callback url is dead-lettered and no url is called back.
 describe("When received message has no callback url", function () {
     before(function () {
         messages = [{
@@ -295,6 +300,7 @@ describe("When received message has no callback url", function () {
     });
 });
 
+// No messages on the topic just logs an informational message.
 describe("When no message recieved", function () {
     before(function () {
         messages = [];
@@ -307,6 +313,7 @@ describe("When no message recieved", function () {
 
 });
 
+// A message with no body is dead-lettered and an error is logged.
 describe("When no body recieved", function () {
     before(function () {
         messages = [{
@@ -324,6 +331,7 @@ describe("When no body recieved", function () {
     });
 });
 
+// A message with no userProperties is dead-lettered and an error is logged.
 describe("When no userproperties recieved", function () {
     before(function () {
         messages = [{
@@ -343,6 +351,7 @@ describe("When no userproperties recieved", function () {
     });
 });
 
+// S2S token fetch fails: message is retried up to 5 times (6 attempts total).
 describe("When serviceCallbackUrl returns success, s2sToken not received. 5 retries expected so 6 attempts in total.", function () {
     let error = new Error("S2SToken Failed");
     before(function () {
@@ -376,6 +385,7 @@ describe("When serviceCallbackUrl returns success, s2sToken not received. 5 retr
     });
 });
 
+// Sending the callback fails: message is retried up to 5 times (6 attempts total).
 describe("When serviceCallbackUrl returns success, but sending callback request fails. 5 retries expected so 6 attempts in total.", function () {
     let error = new Error("Callback Failed");
     before(function () {
@@ -407,6 +417,7 @@ describe("When serviceCallbackUrl returns success, but sending callback request 
     });
 });
 
+// Message body validation throws an unrecoverable error so the message is skipped/dead-lettered.
 describe("When serviceCallbackUrl generates unrecoverable error", function () {
     let err = new Error("S2SToken Failed");
     before(function () {
@@ -425,6 +436,7 @@ describe("When serviceCallbackUrl generates unrecoverable error", function () {
     });
 });
 
+// Callback returns a 500 error and the first dead-letter attempt fails, so the message is retried.
 describe("When serviceCallbackUrl returns error, deadletter success", function () {
     before(function () {
         sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
@@ -451,6 +463,7 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
 
 });
 
+// Callback keeps returning a 500 and the first dead-letter attempt fails, so the message is retried 5 times.
 describe("When serviceCallbackUrl returns error, deadletter success", function () {
     before(function () {
         sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
@@ -481,6 +494,7 @@ describe("When serviceCallbackUrl returns error, deadletter success", function (
      });
 });
 
+// A single 500 callback error is handled with just one attempt.
 describe("When serviceCallbackUrl returns error, deadletter fails", function () {
     before(function () {
         sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});
@@ -506,6 +520,7 @@ describe("When serviceCallbackUrl returns error, deadletter fails", function () 
 
 });
 
+// Callback keeps returning a 500 and is retried across repeated invocations.
 describe("When serviceCallbackUrl returns error, deadletter fails", function () {
     before(function () {
         sandbox.stub(axiosRequest, 'put').resolves({"data":{},status:500});

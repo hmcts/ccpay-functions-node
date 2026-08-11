@@ -9,8 +9,6 @@ import groovy.transform.Field
 
 @Field def ftNamespace = "fees-pay"
 @Field def ftRelease = "ccpay-callback-function-ft"
-@Field def ftTopic = "ccpay-service-callback-ft-topic"
-@Field def ftSubscription = "serviceCallbackFunctionalTestSubscription"
 @Field def ftBusSecret = "ccpay-callback-function-premium-sb"
 
 def ftBranch() {
@@ -193,7 +191,7 @@ def collectAndPublishFunctionalTestReport() {
 }
 
 def teardownFunctionalTest() {
-    sh "helm uninstall ${ftReleaseFull()} -n ${ftNamespace}"
+    sh "helm uninstall ${ftReleaseFull()} -n ${ftNamespace} || true"
 }
 
 withPipeline(type, product, component) {
