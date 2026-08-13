@@ -20,7 +20,7 @@
   "deadLetterSmtpSecure": true,
   "deadLetterSmtpTlsProtocol": "TLSv1.2",
   "deadLetterSmtpUser": "apikey",
-  "deadLetterSmtpPassword": "",
+  "deadLetterSmtpPassword": "Dummy",
   "deadLetterEmailFrom": "smtp.sendgrid.net",
   "deadLetterEmailTo": "",
   "deadLetterEmailSubject": "CCPay Callback - Message dead-lettered"
