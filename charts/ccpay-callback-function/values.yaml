@@ -19,6 +19,8 @@ function:
     "ccpay":
       secrets:
         - payment-s2s-secret
+        - name: dead-letter-email-to
+          alias: DEAD_LETTER_EMAIL_TO
         - name: spring-mail-password
           alias: DEAD_LETTER_SMTP_PASSWORD
   environment:
