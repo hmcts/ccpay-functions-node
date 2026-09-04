@@ -139,6 +139,12 @@ function sendDeadLetterEmail(msg, correlationId) {
     }
     if (!deadLetterSmtpHost || !deadLetterSmtpPort || !deadLetterEmailFrom || !deadLetterEmailTo || !deadLetterEmailSubject) {
         console.log(correlationId + ": Dead letter email enabled but missing configuration.");
+        // Temporary logging....
+        console.log(correlationId + ": Dead letter configuration deadLetterSmtpHost = [" + deadLetterSmtpHost +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterSmtpPort = [" + deadLetterSmtpPort +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterEmailFrom = [" + deadLetterEmailFrom +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterEmailTo = [" + deadLetterEmailTo +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterEmailSubject = [" + deadLetterEmailSubject +"]");
         return Promise.resolve();
     }
 

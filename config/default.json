@@ -4,7 +4,7 @@
   "servicecallbackSubscriptionName": "serviceCallbackPremiumSubscription",
   "processMessagesCount": 10,
   "appInsightsInstumentationKey": "124e39c3-6dad-49ef-aede-d2cddac865c2",
-  "delayMessageMinutes": 30,
+  "delayMessageMinutes": 1,
   "s2sUrl": "http://rpe-service-auth-provider-demo.service.core-compute-demo.internal",
   "microservicePaymentApp": "payment_app",
   "extraServiceLogging": false,
