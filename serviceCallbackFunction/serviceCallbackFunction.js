@@ -191,6 +191,11 @@ validateMessage = message => {
         return false;
     } else {
         console.log(correlationId + ': Received callback message: ', message.body);
+        console.log(correlationId + ": Dead letter configuration deadLetterSmtpHost = [" + deadLetterSmtpHost +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterSmtpPort = [" + deadLetterSmtpPort +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterEmailFrom = [" + deadLetterEmailFrom +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterEmailTo = [" + deadLetterEmailTo +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterEmailSubject = [" + deadLetterEmailSubject +"]");
     }
     if (!message.userProperties) {
         console.log(correlationId + ': No userProperties data');
