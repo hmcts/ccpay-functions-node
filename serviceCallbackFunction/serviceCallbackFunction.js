@@ -135,6 +135,7 @@ retryOrDeadLetter = msg => {
 
 function sendDeadLetterEmail(msg, correlationId) {
     if (!deadLetterEmailEnabled) {
+        console.log(correlationId + ": Dead letter email disabled.");
         return Promise.resolve();
     }
     if (!deadLetterSmtpHost || !deadLetterSmtpPort || !deadLetterEmailFrom || !deadLetterEmailTo || !deadLetterEmailSubject) {

@@ -22,6 +22,6 @@
   "deadLetterSmtpUser": "apikey",
   "deadLetterSmtpPassword": "Dummy",
   "deadLetterEmailFrom": "smtp.sendgrid.net",
-  "deadLetterEmailTo": "",
+  "deadLetterEmailTo": "graeme.bullimore@hmcts.net",
   "deadLetterEmailSubject": "CCPay Callback - Message dead-lettered"
 }
