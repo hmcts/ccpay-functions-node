@@ -648,6 +648,9 @@ describe("When max retries reached and deadletter succeeds with email notificati
         expect(sendMailStub).to.have.been.calledOnce;
         const [smtpConfig, mailOptions] = sendMailStub.firstCall.args;
         expect(smtpConfig).to.be.an('object');
+        expect(smtpConfig.tls).to.deep.equal({
+            minVersion: 'TLSv1.2'
+        });
         expect(mailOptions).to.include({
             from: 'from@example.com',
             to: 'ops@example.com',

@@ -153,9 +153,9 @@ function sendDeadLetterEmail(msg, correlationId) {
         host: deadLetterSmtpHost,
         port: Number.parseInt(deadLetterSmtpPort),
         secure: deadLetterSmtpSecure === true || deadLetterSmtpSecure === 'true',
-        tls: {
-            secureProtocol: deadLetterSmtpTlsProtocol
-        },
+        tls: deadLetterSmtpTlsProtocol ? {
+            minVersion: deadLetterSmtpTlsProtocol
+        } : undefined,
         auth: deadLetterSmtpUser && deadLetterSmtpPassword ? {
             user: deadLetterSmtpUser,
             pass: deadLetterSmtpPassword
