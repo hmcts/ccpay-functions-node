@@ -41,6 +41,7 @@ module.exports = async function serviceCallbackFunction() {
         let msg = messages[i];
         let serviceCallbackUrl;
         let serviceName;
+        let shouldComplete = true;
         let correlationId = msg.correlationId === undefined ? randomInt(100000,999999) : msg.correlationId;
         msg.correlationId = correlationId;
         try {
@@ -62,7 +63,7 @@ module.exports = async function serviceCallbackFunction() {
                     oneTimePassword: otpPassword
                 };
 
-                axiosRequest.post(
+                const retryResult = await axiosRequest.post(
                     s2sUrl + '/lease',
                     serviceAuthRequest
                 ).then(token => {
@@ -73,7 +74,7 @@ module.exports = async function serviceCallbackFunction() {
                         }
                     };
                     console.log(correlationId + ': About to post callback URL ', serviceCallbackUrl);
-                    axiosRequest.put(
+                    return axiosRequest.put(
                         serviceCallbackUrl,
                         msg.body,
                         options
@@ -83,25 +84,26 @@ module.exports = async function serviceCallbackFunction() {
                             console.log(correlationId + ': Message Sent Successfully to ' + serviceCallbackUrl);
                         } else {
                             console.log(correlationId + ': Error in Calling Service ' + JSON.stringify(response));
-                            retryOrDeadLetter(msg);
+                            return retryOrDeadLetter(msg);
                         }
                     }).catch((callbackError) => {
                         console.log(correlationId + ': Error in fetching callback request ' + callbackError);
-                        retryOrDeadLetter(msg);
+                        return retryOrDeadLetter(msg);
                     });
                 }).catch((s2sError) => {
                     console.log(correlationId + ': Error in fetching S2S token message ' + s2sError);
-                    retryOrDeadLetter(msg);
+                    return retryOrDeadLetter(msg);
                 });
+                shouldComplete = retryResult !== false;
             } else {
                 console.log(correlationId + ': Skipping processing invalid message and sending to dead letter' + JSON.stringify(msg.body));
                 await msg.deadLetter();
             }
         } catch (err) {
             console.log(correlationId + ': Error response received from ', serviceCallbackUrl, err);
-          retryOrDeadLetter(msg);
+            shouldComplete = await retryOrDeadLetter(msg);
         } finally {
-            if (!msg.isSettled) {
+            if (shouldComplete && !msg.isSettled) {
                 await msg.complete();
             }
         }
@@ -111,25 +113,26 @@ module.exports = async function serviceCallbackFunction() {
     await sbClient.close();
 }
 
-retryOrDeadLetter = msg => {
+retryOrDeadLetter = async msg => {
     let correlationId = msg.correlationId;
     if (!msg.userProperties.retries) {
         msg.userProperties.retries = 0;
     }
     if (msg.userProperties.retries === MAX_RETRIES) {
         console.log(correlationId + ": Max number of retries reached for ", JSON.stringify(msg.body));
-        msg.deadLetter()
-            .then(() => {
-                console.log(correlationId + ": Dead lettered a message ", JSON.stringify(msg.body));
-                return sendDeadLetterEmail(msg, correlationId);
-            })
-            .catch(err => {
-                console.log(correlationId + ": Error while dead letter messages ", err)
-            });
+        try {
+            await msg.deadLetter();
+            console.log(correlationId + ": Dead lettered a message ", JSON.stringify(msg.body));
+            await sendDeadLetterEmail(msg, correlationId);
+        } catch (err) {
+            console.log(correlationId + ": Error while dead letter messages ", err)
+        }
+        return false;
     } else {
         console.log(correlationId + ": Will retry message at a later time ", JSON.stringify(msg.body));
         msg.userProperties.retries++;
         sendMessage(msg.clone(), correlationId);
+        return true;
     }
 }
 
