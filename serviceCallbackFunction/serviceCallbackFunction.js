@@ -15,6 +15,17 @@ const s2sSecret = config.get('secrets.ccpay.payment-s2s-secret');
 const microService = config.get('microservicePaymentApp');
 const extraServiceLogging = config.get('extraServiceLogging');
 const serviceCallbackUrlPattern = config.get('serviceCallbackUrlPattern');
+const deadLetterEmailEnabled = config.get('deadLetterEmailEnabled');
+const deadLetterSmtpHost = config.get('deadLetterSmtpHost');
+const deadLetterSmtpPort = config.get('deadLetterSmtpPort');
+const deadLetterSmtpSecure = config.get('deadLetterSmtpSecure');
+const deadLetterSmtpUser = config.get('deadLetterSmtpUser');
+const deadLetterSmtpPassword = config.get('deadLetterSmtpPassword');
+const deadLetterSmtpTlsProtocol = config.get('deadLetterSmtpTlsProtocol');
+const deadLetterEmailFrom = config.get('deadLetterEmailFrom');
+const deadLetterEmailTo = config.get('deadLetterEmailTo');
+const deadLetterEmailSubject = config.get('deadLetterEmailSubject');
+const smtpClient = require('./smtpClient');
 const MAX_RETRIES = 5;
 const SERVICE_CALLBACK_URL_PATTERN = new RegExp(serviceCallbackUrlPattern);
 
@@ -30,6 +41,7 @@ module.exports = async function serviceCallbackFunction() {
         let msg = messages[i];
         let serviceCallbackUrl;
         let serviceName;
+        let shouldComplete = true;
         let correlationId = msg.correlationId === undefined ? randomInt(100000,999999) : msg.correlationId;
         msg.correlationId = correlationId;
         try {
@@ -51,7 +63,7 @@ module.exports = async function serviceCallbackFunction() {
                     oneTimePassword: otpPassword
                 };
 
-                axiosRequest.post(
+                const retryResult = await axiosRequest.post(
                     s2sUrl + '/lease',
                     serviceAuthRequest
                 ).then(token => {
@@ -62,7 +74,7 @@ module.exports = async function serviceCallbackFunction() {
                         }
                     };
                     console.log(correlationId + ': About to post callback URL ', serviceCallbackUrl);
-                    axiosRequest.put(
+                    return axiosRequest.put(
                         serviceCallbackUrl,
                         msg.body,
                         options
@@ -72,25 +84,26 @@ module.exports = async function serviceCallbackFunction() {
                             console.log(correlationId + ': Message Sent Successfully to ' + serviceCallbackUrl);
                         } else {
                             console.log(correlationId + ': Error in Calling Service ' + JSON.stringify(response));
-                            retryOrDeadLetter(msg);
+                            return retryOrDeadLetter(msg);
                         }
                     }).catch((callbackError) => {
                         console.log(correlationId + ': Error in fetching callback request ' + callbackError);
-                        retryOrDeadLetter(msg);
+                        return retryOrDeadLetter(msg);
                     });
                 }).catch((s2sError) => {
                     console.log(correlationId + ': Error in fetching S2S token message ' + s2sError);
-                    retryOrDeadLetter(msg);
+                    return retryOrDeadLetter(msg);
                 });
+                shouldComplete = retryResult !== false;
             } else {
                 console.log(correlationId + ': Skipping processing invalid message and sending to dead letter' + JSON.stringify(msg.body));
                 await msg.deadLetter();
             }
         } catch (err) {
             console.log(correlationId + ': Error response received from ', serviceCallbackUrl, err);
-          retryOrDeadLetter(msg);
+            shouldComplete = await retryOrDeadLetter(msg);
         } finally {
-            if (!msg.isSettled) {
+            if (shouldComplete && !msg.isSettled) {
                 await msg.complete();
             }
         }
@@ -100,25 +113,78 @@ module.exports = async function serviceCallbackFunction() {
     await sbClient.close();
 }
 
-retryOrDeadLetter = msg => {
+retryOrDeadLetter = async msg => {
     let correlationId = msg.correlationId;
     if (!msg.userProperties.retries) {
         msg.userProperties.retries = 0;
     }
     if (msg.userProperties.retries === MAX_RETRIES) {
         console.log(correlationId + ": Max number of retries reached for ", JSON.stringify(msg.body));
-        msg.deadLetter()
-            .then(() => {
-                console.log(correlationId + ": Dead lettered a message ", JSON.stringify(msg.body));
-            })
-            .catch(err => {
-                console.log(correlationId + ": Error while dead letter messages ", err)
-            });
+        try {
+            await msg.deadLetter();
+            console.log(correlationId + ": Dead lettered a message ", JSON.stringify(msg.body));
+            await sendDeadLetterEmail(msg, correlationId);
+        } catch (err) {
+            console.log(correlationId + ": Error while dead letter messages ", err)
+        }
+        return false;
     } else {
         console.log(correlationId + ": Will retry message at a later time ", JSON.stringify(msg.body));
         msg.userProperties.retries++;
         sendMessage(msg.clone(), correlationId);
+        return true;
     }
+}
+
+function sendDeadLetterEmail(msg, correlationId) {
+    if (!deadLetterEmailEnabled) {
+        console.log(correlationId + ": Dead letter email disabled.");
+        return Promise.resolve();
+    }
+    if (!deadLetterSmtpHost || !deadLetterSmtpPort || !deadLetterEmailFrom || !deadLetterEmailTo || !deadLetterEmailSubject) {
+        console.log(correlationId + ": Dead letter email enabled but missing configuration.");
+        // Temporary logging....
+        console.log(correlationId + ": Dead letter configuration deadLetterSmtpHost = [" + deadLetterSmtpHost +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterSmtpPort = [" + deadLetterSmtpPort +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterEmailFrom = [" + deadLetterEmailFrom +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterEmailTo = [" + deadLetterEmailTo +"]");
+        console.log(correlationId + ": Dead letter configuration deadLetterEmailSubject = [" + deadLetterEmailSubject +"]");
+        return Promise.resolve();
+    }
+
+    const smtpConfig = {
+        host: deadLetterSmtpHost,
+        port: Number.parseInt(deadLetterSmtpPort),
+        secure: deadLetterSmtpSecure === true || deadLetterSmtpSecure === 'true',
+        tls: deadLetterSmtpTlsProtocol ? {
+            minVersion: deadLetterSmtpTlsProtocol
+        } : undefined,
+        auth: deadLetterSmtpUser && deadLetterSmtpPassword ? {
+            user: deadLetterSmtpUser,
+            pass: deadLetterSmtpPassword
+        } : undefined
+    };
+    const mailOptions = {
+        from: deadLetterEmailFrom,
+        to: deadLetterEmailTo,
+        subject: deadLetterEmailSubject,
+        text: [
+            'A service callback message has been dead-lettered.',
+            'correlationId: ' + correlationId,
+            'retries: ' + msg.userProperties.retries,
+            'serviceName: ' + (msg.userProperties.serviceName || ''),
+            'serviceCallbackUrl: ' + (msg.userProperties.serviceCallbackUrl || msg.userProperties.servicecallbackurl || ''),
+            'messageBody: ' + (typeof msg.body === 'string' ? msg.body : JSON.stringify(msg.body))
+        ].join('\n')
+    };
+
+    return smtpClient.sendMail(smtpConfig, mailOptions)
+        .then(() => {
+            console.log(correlationId + ": Dead letter email sent.");
+        })
+        .catch(err => {
+            console.log(correlationId + ": Failed to send dead letter email ", err);
+        });
 }
 
 validateMessage = message => {
