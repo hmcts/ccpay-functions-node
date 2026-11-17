@@ -121,9 +121,11 @@ retryOrDeadLetter = async msg => {
     if (msg.userProperties.retries === MAX_RETRIES) {
         console.log(correlationId + ": Max number of retries reached for ", JSON.stringify(msg.body));
         try {
+            console.log(correlationId + ": About to dead letter a message ", JSON.stringify(msg.body));
             await msg.deadLetter();
-            console.log(correlationId + ": Dead lettered a message ", JSON.stringify(msg.body));
+            console.log(correlationId + ": Dead lettered a message, about to sendDeadLetterEmail ", JSON.stringify(msg.body));
             await sendDeadLetterEmail(msg, correlationId);
+            console.log(correlationId + ": Dead sendDeadLetterEmail complete ", JSON.stringify(msg.body));
         } catch (err) {
             console.log(correlationId + ": Error while dead letter messages ", err)
         }
@@ -141,14 +143,21 @@ function sendDeadLetterEmail(msg, correlationId) {
         console.log(correlationId + ": Dead letter email disabled.");
         return Promise.resolve();
     }
+
+
+        // Temporary logging....
+    console.log(correlationId + ": Dead letter configuration deadLetterSmtpHost = [" + deadLetterSmtpHost +"]");
+    console.log(correlationId + ": Dead letter configuration deadLetterSmtpPort = [" + deadLetterSmtpPort +"]");
+    console.log(correlationId + ": Dead letter configuration deadLetterEmailFrom = [" + deadLetterEmailFrom +"]");
+    console.log(correlationId + ": Dead letter configuration deadLetterEmailTo = [" + deadLetterEmailTo +"]");
+    console.log(correlationId + ": Dead letter configuration deadLetterEmailSubject = [" + deadLetterEmailSubject +"]");
+    console.log(correlationId + ": Dead letter configuration deadLetterSmtpSecure = [" + deadLetterSmtpSecure +"]");
+    console.log(correlationId + ": Dead letter configuration deadLetterSmtpTlsProtocol = [" + deadLetterSmtpTlsProtocol +"]");
+    console.log(correlationId + ": Dead letter configuration deadLetterSmtpUser character count = [" + (deadLetterSmtpUser ? deadLetterSmtpUser.length : 0) + "]");
+    console.log(correlationId + ": Dead letter configuration deadLetterSmtpPassword character count = [" + (deadLetterSmtpPassword ? deadLetterSmtpPassword.length : 0) + "]");
+
     if (!deadLetterSmtpHost || !deadLetterSmtpPort || !deadLetterEmailFrom || !deadLetterEmailTo || !deadLetterEmailSubject) {
         console.log(correlationId + ": Dead letter email enabled but missing configuration.");
-        // Temporary logging....
-        console.log(correlationId + ": Dead letter configuration deadLetterSmtpHost = [" + deadLetterSmtpHost +"]");
-        console.log(correlationId + ": Dead letter configuration deadLetterSmtpPort = [" + deadLetterSmtpPort +"]");
-        console.log(correlationId + ": Dead letter configuration deadLetterEmailFrom = [" + deadLetterEmailFrom +"]");
-        console.log(correlationId + ": Dead letter configuration deadLetterEmailTo = [" + deadLetterEmailTo +"]");
-        console.log(correlationId + ": Dead letter configuration deadLetterEmailSubject = [" + deadLetterEmailSubject +"]");
         return Promise.resolve();
     }
 
