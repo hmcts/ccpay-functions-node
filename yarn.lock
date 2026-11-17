@@ -3524,10 +3524,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jssha@npm:^2.3.1":
-  version: 2.4.2
-  resolution: "jssha@npm:2.4.2"
-  checksum: 10/2238336f5c2d5e7981eb9879977d172f8aa9686f60de777cd972aec543a72f43f5b0564ccd0c059bd12f6851a633d5da77e78c626b2b82e2f86774a2b1bd46c9
+"jssha@npm:3.3.2":
+  version: 3.3.2
+  resolution: "jssha@npm:3.3.2"
+  checksum: 10/8731aacb3c3e64d96b1375596e88ef2de94e298c121963f0e7b949a419ac452b01451b4f64269a91bf1f4b27131a977ce96e8dc7c2b4a3099e16dc5a9d640b4f
   languageName: node
   linkType: hard
 
