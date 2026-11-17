@@ -52,7 +52,7 @@
     "cookiejar": ">=2.1.4",
     "form-data@npm:^3.0.0": "npm:3.0.5",
     "form-data@npm:^4.0.0": "npm:4.0.6",
-    "follow-redirects": "1.16.0",
+    "follow-redirects": "1.16.1",
     "xml2js": ">=0.6.2",
     "json5": ">=2.2.3",
     "tough-cookie": ">=4.1.3",
