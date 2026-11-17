@@ -1662,7 +1662,7 @@ __metadata:
     globals: "npm:^15.0.0"
     mocha: "npm:^10.0.0"
     node-fetch: "npm:>=3.1.1"
-    nodemailer: "npm:^9.1.1"
+    nodemailer: "npm:^10.6.0"
     nyc: "npm:^15.1.0"
     otp: "npm:^0.1.3"
     proxyquire: "npm:^2.1.3"
@@ -4126,10 +4126,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nodemailer@npm:^10.0.16":
-  version: 10.0.16
-  resolution: "nodemailer@npm:10.0.16"
-  checksum: 10/b06180f1d63b71c0ef5013fbb29aca787be8bfcad23eaa6dc96b4e8b4008773607662d64f366e9e4dcf38640e9f7eaa433db8008371e0a9827a4be6df1272e51
+"nodemailer@npm:^10.6.0":
+  version: 10.6.0
+  resolution: "nodemailer@npm:10.6.0"
+  checksum: 10/e44f379672f71e80d3bce22e65738432c4734301195ab0f62c471f1b1a8f190e53dabfcd6cdc3fcc6f96e8a8314ee1e6633a32670eafa36b9b9c1f9d821269e7
   languageName: node
   linkType: hard
 
